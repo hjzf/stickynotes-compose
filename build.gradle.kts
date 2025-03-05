@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.stickynotes"
-version = "1.0.10"
+version = "1.0.11"
 
 repositories {
 //    maven("https://maven.aliyun.com/repository/public")
@@ -26,6 +26,10 @@ dependencies {
     // With compose.desktop.common you will also lose @Preview functionality
     implementation(compose.desktop.currentOs)
     implementation("org.apache.commons:commons-text:1.12.0")
+    implementation("org.apache.lucene:lucene-core:10.1.0")
+    implementation("org.apache.lucene:lucene-analysis-common:10.1.0")
+    implementation("org.apache.lucene:lucene-queryparser:10.1.0")
+    implementation("cn.shenyanchao.ik-analyzer:ik-analyzer:9.0.0")
 }
 
 compose.desktop {
@@ -38,7 +42,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "stickynotes"
-            packageVersion = "1.0.10"
+            packageVersion = "1.0.11"
             description = "stickynotes"
             vendor = "Sticky Notes"
             macOS {

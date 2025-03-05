@@ -103,12 +103,22 @@ fun NoteListPage(lazyListState: LazyListState = rememberLazyListState()) {
             state = lazyListState, modifier = Modifier.fillMaxSize()
         ) {
             item {
-                Text(
-                    text = localApplicationLocalization.stickynotes,
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                )
+                ContextMenuArea({
+                    listOf(
+                        ContextMenuItem(localApplicationLocalization.updateIndex) {
+                            coroutineScope.launch {
+                                DataStore.updateIndex()
+                            }
+                        }
+                    )
+                }) {
+                    Text(
+                        text = localApplicationLocalization.stickynotes,
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                    )
+                }
                 Spacer(modifier = Modifier.height(13.dp))
             }
             stickyHeader {

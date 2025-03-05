@@ -104,6 +104,7 @@ val applicationLocalizationMap = mapOf(
         copyWhenClick = "点击复制",
         tooltip = "悬浮提示",
         transition = "过渡动画",
+        updateIndex = "更新索引",
     ),
 )
 private val noteColorStyles = mapOf(

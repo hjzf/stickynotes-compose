@@ -2,9 +2,21 @@
 
 Windows Sticky Notes based on [Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform)
 
+> Java 21+ is required
+
+## Screenshots
+
+![](./screenshots/1.png)
+
+![](./screenshots/2.gif)
+
+![](./screenshots/3.gif)
+
 ## Third-party dependencies
 
 [https://github.com/Calvin-LL/Reorderable](https://github.com/Calvin-LL/Reorderable)
+
+[https://github.com/apache/lucene](https://github.com/apache/lucene)
 
 ## Other things
 

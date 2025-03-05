@@ -84,6 +84,7 @@ data class ApplicationLocalization(
     val copyWhenClick: String = "Copy When Click",
     val tooltip: String = "Tooltip",
     val transition: String = "Transition",
+    val updateIndex: String = "Update index",
 )
 
 data class Note(

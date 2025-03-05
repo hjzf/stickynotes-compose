@@ -6,12 +6,12 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import org.jetbrains.skia.Image.Companion.makeFromEncoded
 import tool.*
 import java.io.File
+import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.*
 import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
 import kotlin.io.path.*
 
 class LRUCache(private val maxElements: Int) : LinkedHashMap<String, ImageBitmap?>(maxElements, 0.75f, true) {
@@ -53,18 +53,20 @@ object DataStore {
     }
 
     fun loadProfileState(profileFilePath: Path, defaultDataPath: Path): ProfileState {
-        _profileState = profileStateFromKeyValues(
-            profileFilePath.toFile().readKeyValues(),
-            ProfileState(dataPath = defaultDataPath.toString())
-        )
+        val defaultProfileState = ProfileState(dataPath = defaultDataPath.toString())
+        _profileState = profileFilePath.readAsProfileState(charset = Charsets.UTF_8, defaultProfileState)
         _imageCache = LRUCache(_profileState.imageCache)
         return _profileState
+    }
+
+    private fun saveProfileState(profileState: ProfileState, profileFilePath: Path) {
+        profileFilePath.writeText(profileState.toText(), charset = Charsets.UTF_8)
     }
 
     fun updateFontSize(fontSize: Int, profileFilePath: Path): ProfileState {
         if (fontSize != _profileState.fontSize) {
             _profileState = _profileState.copy(fontSize = fontSize)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
         }
         return _profileState
     }
@@ -72,7 +74,7 @@ object DataStore {
     fun updateFontWeight(fontWeight: Int, profileFilePath: Path): ProfileState {
         if (fontWeight != _profileState.fontWeight) {
             _profileState = _profileState.copy(fontWeight = fontWeight)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
         }
         return _profileState
     }
@@ -80,7 +82,7 @@ object DataStore {
     fun updateFontFamily(fontFamily: String, profileFilePath: Path): ProfileState {
         if (fontFamily != _profileState.fontFamily) {
             _profileState = _profileState.copy(fontFamily = fontFamily)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
         }
         return _profileState
     }
@@ -88,7 +90,7 @@ object DataStore {
     fun updateBackgroundAlpha(backgroundAlpha: Int, profileFilePath: Path): ProfileState {
         if (backgroundAlpha != _profileState.backgroundAlpha) {
             _profileState = _profileState.copy(backgroundAlpha = backgroundAlpha)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
         }
         return _profileState
     }
@@ -96,7 +98,7 @@ object DataStore {
     suspend fun updateDataPath(dataPath: String, profileFilePath: Path): ProfileState {
         if (dataPath != _profileState.dataPath) {
             _profileState = _profileState.copy(dataPath = dataPath)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
             dataPathVersionFlow.emit(System.currentTimeMillis())
         }
         return _profileState
@@ -105,7 +107,7 @@ object DataStore {
     fun updateMarkdownPath(markdownPath: String, profileFilePath: Path): ProfileState {
         if (markdownPath != _profileState.markdownPath) {
             _profileState = _profileState.copy(markdownPath = markdownPath)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
         }
         return _profileState
     }
@@ -114,7 +116,7 @@ object DataStore {
         if (imageCache != _profileState.imageCache) {
             _profileState = _profileState.copy(imageCache = imageCache)
             _imageCache = LRUCache(_profileState.imageCache)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
         }
         return _profileState
     }
@@ -122,7 +124,7 @@ object DataStore {
     fun updateCopyWhenClick(copyWhenClick: Boolean, profileFilePath: Path): ProfileState {
         if (copyWhenClick != _profileState.copyWhenClick) {
             _profileState = _profileState.copy(copyWhenClick = copyWhenClick)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
         }
         return _profileState
     }
@@ -130,7 +132,7 @@ object DataStore {
     fun updateColorTheme(colorTheme: String, profileFilePath: Path): ProfileState {
         if (colorTheme != _profileState.colorTheme) {
             _profileState = _profileState.copy(colorTheme = colorTheme)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
         }
         return _profileState
     }
@@ -138,7 +140,7 @@ object DataStore {
     fun updateLanguage(language: String, profileFilePath: Path): ProfileState {
         if (language != _profileState.language) {
             _profileState = _profileState.copy(language = language)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
         }
         return _profileState
     }
@@ -146,7 +148,7 @@ object DataStore {
     fun updateTooltip(tooltip: Boolean, profileFilePath: Path): ProfileState {
         if (tooltip != _profileState.tooltip) {
             _profileState = _profileState.copy(tooltip = tooltip)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
         }
         return _profileState
     }
@@ -154,22 +156,23 @@ object DataStore {
     fun updateTransition(transition: Boolean, profileFilePath: Path): ProfileState {
         if (transition != _profileState.transition) {
             _profileState = _profileState.copy(transition = transition)
-            profileFilePath.toFile().writeKeyValues(_profileState.toKeyValues())
+            saveProfileState(_profileState, profileFilePath)
         }
         return _profileState
     }
 
     suspend fun addNewNote(): Note {
         val notes = loadNotes().toMutableList()
+        val timestamp = currentTimeAsTimestamp()
         val newNote = Note(
             id = UUID.randomUUID().toString().replace("-", ""),
             visible = true,
-            updateTime = currentTimeAsTimestamp(),
-            createTime = currentTimeAsTimestamp()
+            updateTime = timestamp,
+            createTime = timestamp
         )
         notes.add(newNote)
         saveNotes(notes)
-        saveBlocks(newNote.id, emptyList())
+        saveBlocks(newNote.id, emptyList(), timestamp)
         windowStateVersionFlow.emit(System.currentTimeMillis())
         return newNote
     }
@@ -219,9 +222,7 @@ object DataStore {
             if (index >= 0) {
                 if (notes[index].position1 != position1 || notes[index].position2 != position2 || notes[index].position3 != position3) {
                     notes[index] = notes[index].copy(
-                        position1 = position1,
-                        position2 = position2,
-                        position3 = position3
+                        position1 = position1, position2 = position2, position3 = position3
                     )
                     saveNotes(notes)
                 }
@@ -302,12 +303,12 @@ object DataStore {
             if (index >= 0) {
                 val note = notes[index]
                 if (!equals(blocks, loadBlocks(note.id))) {
+                    val timestamp = currentTimeAsTimestamp()
                     notes[index] = note.copy(
-                        description = calculateDescription(blocks),
-                        updateTime = currentTimeAsTimestamp()
+                        description = calculateDescription(blocks), updateTime = timestamp
                     )
                     saveNotes(notes)
-                    saveBlocks(id, blocks)
+                    saveBlocks(id, blocks, timestamp)
                     noteContentVersionFlow.emit(System.currentTimeMillis())
                 }
             }
@@ -323,19 +324,21 @@ object DataStore {
     }
 
     fun loadNotes(): List<Note> {
-        return notesFromKeyValues((Path(_profileState.dataPath) / NOTES_TXT).toFile().readKeyValues())
+        return (Path(_profileState.dataPath) / NOTES_TXT).readAsNotes(charset = Charsets.UTF_8)
     }
 
     private fun saveNotes(notes: MutableList<Note>) {
-        (Path(_profileState.dataPath) / NOTES_TXT).toFile().writeKeyValues(notes.toKeyValues())
+        (Path(_profileState.dataPath) / NOTES_TXT).writeText(notes.toText(), charset = Charsets.UTF_8)
     }
 
     fun loadBlocks(id: String): List<Block> {
-        return blocksFromKeyValues((Path(_profileState.dataPath) / "${id}.txt").toFile().readKeyValues())
+        return (Path(_profileState.dataPath) / "${id}.txt").readAsBlocks(charset = Charsets.UTF_8)
     }
 
-    private fun saveBlocks(id: String, blocks: List<Block>) {
-        (Path(_profileState.dataPath) / "${id}.txt").toFile().writeKeyValues(blocks.toKeyValues())
+    private fun saveBlocks(noteId: String, blocks: List<Block>, updateTime: Long) {
+        val dataPath = Path(_profileState.dataPath)
+        (dataPath / "${noteId}.txt").writeText(blocks.toText(), charset = Charsets.UTF_8)
+        Lucene.updateIndexForNote(noteId, blocks, updateTime, dataPath / "index")
     }
 
     private fun String.escape(): String {
@@ -353,16 +356,12 @@ object DataStore {
         if (blocks.isEmpty()) {
             return ""
         }
+        val textTypes = arrayOf(
+            BlockType.TEXT, BlockType.BOLD, BlockType.ITALIC, BlockType.UNDERLINE, BlockType.LINE_THROUGH
+        )
         if (blocks.size == 1) {
             val singleBlock = blocks[0]
-            return if (singleBlock.type in arrayOf(
-                    BlockType.TEXT,
-                    BlockType.BOLD,
-                    BlockType.ITALIC,
-                    BlockType.UNDERLINE,
-                    BlockType.LINE_THROUGH
-                )
-            ) {
+            return if (singleBlock.type in textTypes) {
                 singleBlock.content.escape()
             } else {
                 "# ${singleBlock.type.description}\n${singleBlock.content.escape()}"
@@ -370,14 +369,7 @@ object DataStore {
         }
         val builder = StringBuilder()
         val firstBlock = blocks[0]
-        if (firstBlock.type in arrayOf(
-                BlockType.TEXT,
-                BlockType.BOLD,
-                BlockType.ITALIC,
-                BlockType.UNDERLINE,
-                BlockType.LINE_THROUGH
-            )
-        ) {
+        if (firstBlock.type in textTypes) {
             builder.append("${firstBlock.content.escape()}\n")
         } else {
             builder.append("# ${firstBlock.type.description}\n${firstBlock.content.escape()}\n")
@@ -436,85 +428,21 @@ object DataStore {
         updateNoteContent(id, blocks)
     }
 
+    fun updateIndex() {
+        val notes = loadNotes()
+        val list = notes.map { it to loadBlocks(it.id) }
+        Lucene.updateIndexForNotes(list, Path(_profileState.dataPath) / "index")
+    }
+
     fun search(target: String): List<NoteCard> {
-        if (target.isEmpty()) {
-            return loadNotes().sortedByDescending { it.updateTime }.map {
-                NoteCard(
-                    key = it.id,
-                    noteId = it.id,
-                    position1 = it.position1,
-                    position2 = it.position2,
-                    description = it.description,
-                    visible = it.visible,
-                    style = it.style,
-                    updateTime = formatTimestamp(it.updateTime),
-                )
-            }
-        }
-        val notes = loadNotes().sortedByDescending { it.updateTime }
-        if (notes.isEmpty()) {
-            return emptyList()
-        }
-        val noteCards = ArrayList<NoteCard>(notes.size)
-        for (note in notes) {
-            val updateTimeAsString = formatTimestamp(note.updateTime)
-            val blocks = loadBlocks(note.id)
-            for ((blockIndex, block) in blocks.withIndex()) {
-                val index = block.content.indexOf(target, ignoreCase = true)
-                if (index >= 0) {
-                    noteCards.add(
-                        NoteCard(
-                            key = "${note.id}_${blockIndex}",
-                            noteId = note.id,
-                            position1 = blockIndex,
-                            position2 = 0,
-                            description = block.content.substring(if (index >= 8) index - 8 else 0),
-                            visible = note.visible,
-                            style = note.style,
-                            updateTime = updateTimeAsString,
-                        )
-                    )
-                }
-            }
-            if (
-                arrayOf(
-                    updateTimeAsString,
-                    formatTimestamp(note.updateTime, "yyyy-MM-dd"),
-                    formatTimestamp(note.updateTime, "yyyy MM dd"),
-                    formatTimestamp(note.updateTime, "yyyy.MM.dd"),
-                    formatTimestamp(note.updateTime, "yyyy年MM月dd日"),
-                    formatTimestamp(note.updateTime, "yyyy/MM/d"),
-                    formatTimestamp(note.updateTime, "yyyy-MM-d"),
-                    formatTimestamp(note.updateTime, "yyyy MM d"),
-                    formatTimestamp(note.updateTime, "yyyy.MM.d"),
-                    formatTimestamp(note.updateTime, "yyyy年MM月d日"),
-                ).any { it.indexOf(target, ignoreCase = true) >= 0 }
-            ) {
-                noteCards.add(
-                    NoteCard(
-                        key = "${note.id}_",
-                        noteId = note.id,
-                        position1 = note.position1,
-                        position2 = note.position2,
-                        description = note.description,
-                        visible = note.visible,
-                        style = note.style,
-                        updateTime = updateTimeAsString,
-                    )
-                )
-            }
-        }
-        return noteCards
+        return Lucene.query(target, loadNotes(), Path(_profileState.dataPath) / "index")
     }
 
     fun exportMarkdown(id: String): Boolean {
         var ok: Boolean
         try {
             val markdownFilePath = Path(_profileState.markdownPath) / "${APP_NAME}_${id}" / "index.md"
-            val markdownFile = markdownFilePath.toFile()
-            if (!markdownFile.exists()) {
-                markdownFile.parentFile.mkdirs()
-            }
+            markdownFilePath.createParentDirectories()
             val images = "images"
             val imagesPath = markdownFilePath.parent / images
             if (!imagesPath.exists()) {
@@ -562,7 +490,7 @@ object DataStore {
                     }
                 }
             }
-            markdownFile.writeText(markdownTextList.joinToString("\n\n"))
+            markdownFilePath.writeText(markdownTextList.joinToString("\n\n"), charset = Charsets.UTF_8)
             ok = true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -573,24 +501,102 @@ object DataStore {
 
 }
 
-fun ProfileState.toKeyValues(): Map<String, String> {
-    return mapOf(
-        "[fontSize]" to fontSize.toString(),
-        "[fontWeight]" to fontWeight.toString(),
-        "[fontFamily]" to fontFamily,
-        "[backgroundAlpha]" to backgroundAlpha.toString(),
-        "[dataPath]" to dataPath,
-        "[markdownPath]" to markdownPath,
-        "[imageCache]" to imageCache.toString(),
-        "[copyWhenClick]" to copyWhenClick.toString(),
-        "[colorTheme]" to colorTheme,
-        "[language]" to language,
-        "[tooltip]" to tooltip.toString(),
-        "[transition]" to transition.toString(),
-    )
+private fun equals(block1: Block?, block2: Block?): Boolean {
+    if (block1 === block2) {
+        return true
+    }
+    if (block1 == null || block2 == null) {
+        return false
+    }
+    return block1.id == block2.id && block1.type == block2.type && block1.content == block2.content
 }
 
-fun profileStateFromKeyValues(kv: Map<String, String>, defaultProfileState: ProfileState): ProfileState {
+private fun equals(blockList1: List<Block>?, blockList2: List<Block>?): Boolean {
+    if (blockList1 === blockList2) {
+        return true
+    }
+    if (blockList1 == null || blockList2 == null || blockList1.size != blockList2.size) {
+        return false
+    }
+    val size = blockList1.size
+    var i = 0
+    while (i < size) {
+        if (!equals(blockList1[i], blockList2[i])) {
+            return false
+        }
+        i++
+    }
+    return true
+}
+
+@JvmName("profileStateToText")
+private fun ProfileState.toText(): String {
+    return StringBuilder().append("[fontSize]\n").append(fontSize).append('\n').append("[fontWeight]\n")
+        .append(fontWeight).append('\n').append("[fontFamily]\n").append(fontFamily.escapeJava()).append('\n')
+        .append("[backgroundAlpha]\n").append(backgroundAlpha).append('\n').append("[dataPath]\n")
+        .append(dataPath.escapeJava()).append('\n').append("[markdownPath]\n").append(markdownPath.escapeJava())
+        .append('\n').append("[imageCache]\n").append(imageCache).append('\n').append("[copyWhenClick]\n")
+        .append(copyWhenClick).append('\n').append("[colorTheme]\n").append(colorTheme.escapeJava()).append('\n')
+        .append("[language]\n").append(language.escapeJava()).append('\n').append("[tooltip]\n").append(tooltip)
+        .append('\n').append("[transition]\n").append(transition).toString()
+}
+
+@JvmName("notesToText")
+private fun List<Note>.toText(): String {
+    val stringBuilder = StringBuilder()
+    for (i in this.indices) {
+        val note = this[i]
+        stringBuilder.append('[').append(i).append(".id]\n").append(note.id.escapeJava()).append('\n').append('[')
+            .append(i).append(".createTime]\n").append(note.createTime).append('\n').append('[').append(i)
+            .append(".updateTime]\n").append(note.updateTime).append('\n').append('[').append(i)
+            .append(".description]\n").append(note.description.escapeJava()).append('\n').append('[').append(i)
+            .append(".visible]\n").append(note.visible).append('\n').append('[').append(i).append(".style]\n")
+            .append(note.style.escapeJava()).append('\n').append('[').append(i).append(".width]\n").append(note.width)
+            .append('\n').append('[').append(i).append(".height]\n").append(note.height).append('\n').append('[')
+            .append(i).append(".alwaysOnTop]\n").append(note.alwaysOnTop).append('\n').append('[').append(i)
+            .append(".x]\n").append(note.x).append('\n').append('[').append(i).append(".y]\n").append(note.y)
+            .append('\n').append('[').append(i).append(".mode]\n").append(note.mode).append('\n').append('[').append(i)
+            .append(".position1]\n").append(note.position1).append('\n').append('[').append(i).append(".position2]\n")
+            .append(note.position2).append('\n').append('[').append(i).append(".position3]\n").append(note.position3)
+            .append('\n')
+    }
+    return stringBuilder.toString()
+}
+
+@JvmName("blocksToText")
+private fun List<Block>.toText(): String {
+    val stringBuilder = StringBuilder()
+    for (block in this) {
+        stringBuilder.append('[').append(block.id).append(']').append(block.type.description.escapeJava()).append('\n')
+            .append(block.content.escapeJava()).append('\n')
+    }
+    return stringBuilder.toString()
+}
+
+private fun Path.readKeyValues(charset: Charset): List<Pair<String, String>> {
+    if (!this.exists() || this.isDirectory() || !this.isReadable()) {
+        return emptyList()
+    }
+    val list = ArrayList<Pair<String, String>>()
+    this.bufferedReader(charset = charset).useLines { lines ->
+        var key: String? = null
+        for (line in lines) {
+            if (key == null) {
+                key = line.unescapeJava()
+            } else {
+                list.add(key to line.unescapeJava())
+                key = null
+            }
+        }
+    }
+    return list
+}
+
+private fun Path.readAsProfileState(charset: Charset, defaultProfileState: ProfileState): ProfileState {
+    val list = this.readKeyValues(charset)
+    if (list.isEmpty()) {
+        return defaultProfileState
+    }
     var fontSize = defaultProfileState.fontSize
     var fontWeight = defaultProfileState.fontWeight
     var fontFamily = defaultProfileState.fontFamily
@@ -603,9 +609,7 @@ fun profileStateFromKeyValues(kv: Map<String, String>, defaultProfileState: Prof
     var language = defaultProfileState.language
     var tooltip = defaultProfileState.tooltip
     var transition = defaultProfileState.transition
-    for (entry in kv.entries) {
-        val key = entry.key
-        val value = entry.value
+    for ((key, value) in list) {
         val propertyName = key.substring(1, key.length - 1)
         when (propertyName) {
             "fontSize" -> {
@@ -675,56 +679,34 @@ fun profileStateFromKeyValues(kv: Map<String, String>, defaultProfileState: Prof
     )
 }
 
-@JvmName("notesToKeyValues")
-fun List<Note>.toKeyValues(): Map<String, String> {
-    val kv = mutableMapOf<String, String>()
-    for (i in this.indices) {
-        val note = this[i]
-        kv["[${i}.id]"] = note.id
-        kv["[${i}.createTime]"] = note.createTime.toString()
-        kv["[${i}.updateTime]"] = note.updateTime.toString()
-        kv["[${i}.description]"] = note.description
-        kv["[${i}.visible]"] = note.visible.toString()
-        kv["[${i}.style]"] = note.style
-        kv["[${i}.width]"] = note.width.toString()
-        kv["[${i}.height]"] = note.height.toString()
-        kv["[${i}.alwaysOnTop]"] = note.alwaysOnTop.toString()
-        kv["[${i}.x]"] = note.x.toString()
-        kv["[${i}.y]"] = note.y.toString()
-        kv["[${i}.mode]"] = note.mode.toString()
-        kv["[${i}.position1]"] = note.position1.toString()
-        kv["[${i}.position2]"] = note.position2.toString()
-        kv["[${i}.position3]"] = note.position3.toString()
+private fun Path.readAsNotes(charset: Charset): List<Note> {
+    val list = this.readKeyValues(charset)
+    if (list.isEmpty()) {
+        return emptyList()
     }
-    return kv
-}
-
-fun notesFromKeyValues(kv: Map<String, String>): List<Note> {
-    val idList = Array<String?>(kv.size) { null }
+    val idList = Array<String?>(list.size) { null }
     val idToIndex = HashMap<String, Int>()
-    val createTimeArray = LongArray(kv.size) { 0L }
-    val updateTimeArray = LongArray(kv.size) { 0L }
-    val descriptionArray = Array(kv.size) { "" }
-    val visibleArray = BooleanArray(kv.size) { false }
-    val styleArray = Array(kv.size) { "" }
-    val widthArray = IntArray(kv.size) { 360 }
-    val heightArray = IntArray(kv.size) { 360 }
-    val alwaysOnTopArray = BooleanArray(kv.size) { false }
-    val xArray = IntArray(kv.size) { -1 }
-    val yArray = IntArray(kv.size) { -1 }
-    val modeArray = IntArray(kv.size) { 0 }
-    val position1Array = IntArray(kv.size) { 0 }
-    val position2Array = IntArray(kv.size) { 0 }
-    val position3Array = IntArray(kv.size) { 100 }
-    for (entry in kv.entries) {
-        val key = entry.key
+    val createTimeArray = LongArray(list.size) { 0L }
+    val updateTimeArray = LongArray(list.size) { 0L }
+    val descriptionArray = Array(list.size) { "" }
+    val visibleArray = BooleanArray(list.size) { false }
+    val styleArray = Array(list.size) { "" }
+    val widthArray = IntArray(list.size) { 360 }
+    val heightArray = IntArray(list.size) { 360 }
+    val alwaysOnTopArray = BooleanArray(list.size) { false }
+    val xArray = IntArray(list.size) { -1 }
+    val yArray = IntArray(list.size) { -1 }
+    val modeArray = IntArray(list.size) { 0 }
+    val position1Array = IntArray(list.size) { 0 }
+    val position2Array = IntArray(list.size) { 0 }
+    val position3Array = IntArray(list.size) { 100 }
+    for ((key, value) in list) {
         val dotIndex = key.indexOf(".")
         if (dotIndex == -1) {
             continue
         }
         val index = key.substring(1, dotIndex).toIntOrNull() ?: continue
         val propertyName = key.substring(dotIndex + 1, key.length - 1)
-        val value = entry.value
         when (propertyName) {
             "id" -> {
                 idList[index] = value
@@ -847,64 +829,18 @@ fun notesFromKeyValues(kv: Map<String, String>): List<Note> {
     }
 }
 
-@JvmName("blocksToKeyValues")
-fun List<Block>.toKeyValues(): Map<String, String> {
-    val kv = mutableMapOf<String, String>()
-    for ((index, block) in this.withIndex()) {
-        kv["[${index}]${block.type.description}"] = block.content
+private fun Path.readAsBlocks(charset: Charset): List<Block> {
+    val list = this.readKeyValues(charset)
+    if (list.isEmpty()) {
+        return emptyList()
     }
-    return kv
-}
-
-fun equals(block1: Block?, block2: Block?): Boolean {
-    if (block1 == null && block2 == null) {
-        return true
-    }
-    if (block1 == null) {
-        return false
-    }
-    if (block2 == null) {
-        return false
-    }
-    if (block1 === block2) {
-        return true
-    }
-    return block1.id == block2.id && block1.type == block2.type && block1.content == block2.content
-}
-
-fun equals(blockList1: List<Block>?, blockList2: List<Block>?): Boolean {
-    if (blockList1 == null && blockList2 == null) {
-        return true
-    }
-    if (blockList1 == null) {
-        return false
-    }
-    if (blockList2 == null) {
-        return false
-    }
-    if (blockList1 === blockList2) {
-        return true
-    }
-    if (blockList1.size != blockList2.size) {
-        return false
-    }
-    for (index in blockList1.indices) {
-        if (!equals(blockList1[index], blockList2[index])) {
-            return false
-        }
-    }
-    return true
-}
-
-fun blocksFromKeyValues(kv: Map<String, String>): List<Block> {
-    val treeMap = TreeMap<Int, Block> { a, b -> a - b }
-    for (entry in kv.entries) {
-        val key = entry.key
+    val blocks = ArrayList<Block>(list.size)
+    for ((key, value) in list) {
         val endIndex = key.indexOf("]")
         if (endIndex == -1) {
             continue
         }
-        val index = key.substring(1, endIndex).toIntOrNull() ?: continue
+        val id = key.substring(1, endIndex).toIntOrNull() ?: continue
         val typeName = key.substring(endIndex + 1).trim().lowercase(Locale.getDefault())
         val type = when (typeName) {
             BlockType.TEXT.description -> BlockType.TEXT
@@ -915,10 +851,7 @@ fun blocksFromKeyValues(kv: Map<String, String>): List<Block> {
             BlockType.IMAGE.description -> BlockType.IMAGE
             else -> BlockType.TEXT
         }
-        treeMap[index] = Block(type, entry.value, index)
+        blocks.add(Block(type, value, id))
     }
-    if (treeMap.isEmpty()) {
-        return emptyList()
-    }
-    return treeMap.values.toList()
+    return blocks
 }
