@@ -70,6 +70,11 @@ fun main() {
             val themeShapes = remember { mutableStateOf(defaultThemeShapes) }
             val mainWindowVisible = remember { mutableStateOf(true) }
             val mainWindowAlwaysOnTop = remember { mutableStateOf(false) }
+            LaunchedEffect(mainWindowVisible.value, notes.value) {
+                if (!mainWindowVisible.value && notes.value.none { it.visible }) {
+                    exitApplication()
+                }
+            }
             CompositionLocalProvider(
                 LocalLocalization provides textFieldLocalization.value,
                 LocalProfileState provides profileState.value,
@@ -81,9 +86,6 @@ fun main() {
                         alwaysOnTop = mainWindowAlwaysOnTop.value,
                         onCloseButtonClick = {
                             mainWindowVisible.value = false
-                            if (notes.value.none { it.visible } && !mainWindowVisible.value) {
-                                exitApplication()
-                            }
                         },
                         exitApplication = {
                             exitApplication()
@@ -97,11 +99,6 @@ fun main() {
                             if (note.visible) {
                                 NoteWindow(
                                     note = note,
-                                    onCloseButtonClick = {
-                                        if (notes.value.none { it.visible } && !mainWindowVisible.value) {
-                                            exitApplication()
-                                        }
-                                    },
                                     openMainWindow = {
                                         mainWindowVisible.value = true
                                         coroutineScope.launch {

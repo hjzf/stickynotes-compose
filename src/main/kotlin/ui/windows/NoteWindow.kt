@@ -180,7 +180,6 @@ private fun ButtonWithText(
 @Composable
 fun NoteWindow(
     note: Note,
-    onCloseButtonClick: () -> Unit,
     openMainWindow: () -> Unit,
 ) {
     val windowState = rememberWindowState(
@@ -225,7 +224,6 @@ fun NoteWindow(
             coroutineScope.launch {
                 DataStore.updateNoteVisible(note.id, false)
             }
-            onCloseButtonClick()
         },
         title = localApplicationLocalization.stickynotes,
         icon = rememberVectorPainter(SvgIcons.Watermelon),
@@ -285,7 +283,6 @@ fun NoteWindow(
                                 coroutineScope.launch {
                                     DataStore.updateNoteVisible(note.id, false)
                                 }
-                                onCloseButtonClick()
                             },
                             onDownClick = {
                                 coroutineScope.launch { clipboardSignal.value = true }
