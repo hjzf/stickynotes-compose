@@ -6,6 +6,10 @@ import androidx.compose.material.Shapes
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.PlatformLocalization
 import androidx.compose.ui.unit.dp
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
+private val log: Logger = LoggerFactory.getLogger("DefaultValues")
 
 val defaultThemeColors = Colors(
     primary = Color(0xff3574f0),
@@ -105,6 +109,15 @@ val applicationLocalizationMap = mapOf(
         tooltip = "悬浮提示",
         transition = "过渡动画",
         updateIndex = "更新索引",
+        minimize = "最小化",
+        maximize = "最大化",
+        exitApplication = "退出程序",
+        markAs = "标记为",
+        ok = "确定",
+        delete = "删除",
+        cancel = "取消",
+        confirmDelete = "确认删除",
+        confirmDeleteThisText = "确定要永久删除这段文本吗?",
     ),
 )
 private val noteColorStyles = mapOf(
@@ -262,7 +275,23 @@ fun colorStyles(colorTheme: String): List<String> {
     return (noteColorStyles[colorTheme] ?: emptyMap()).keys.toList()
 }
 
+private val defaultNoteColor = NoteColor(
+    base = Color(0xff1b73e5),
+    header = Color(0xff1b73e5),
+    content = Color(0xff192d46),
+    border = Color(0xff1b73e5),
+    font = Color(0xffececec),
+    icon = Color(0xffffffff),
+    card = Color(0xff2b69d6),
+    overlap = Color(0xff103770),
+)
+
 fun getNoteColor(colorTheme: String, style: String): NoteColor {
-    val noteColorMap = noteColorStyles[colorTheme] ?: noteColorStyles["light"]!!
-    return noteColorMap[style] ?: noteColorMap["green"]!!
+    try {
+        val noteColorMap = noteColorStyles[colorTheme] ?: noteColorStyles["light"]!!
+        return noteColorMap[style] ?: noteColorMap["green"]!!
+    } catch (e: Exception) {
+        log.error("getNoteColor error", e)
+        return defaultNoteColor
+    }
 }

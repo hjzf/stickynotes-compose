@@ -85,6 +85,15 @@ data class ApplicationLocalization(
     val tooltip: String = "Tooltip",
     val transition: String = "Transition",
     val updateIndex: String = "Update index",
+    val minimize: String = "Minimize",
+    val maximize: String = "maximize",
+    val exitApplication: String = "Exit application",
+    val markAs: String = "Mark as",
+    val ok: String = "OK",
+    val delete: String = "Delete",
+    val cancel: String = "Cancel",
+    val confirmDelete: String = "Delete",
+    val confirmDeleteThisText: String = "Are you sure you want to permanently delete this text?",
 )
 
 data class Note(

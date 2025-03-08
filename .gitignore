@@ -6,6 +6,7 @@ build/
 
 ### IntelliJ IDEA ###
 .idea
+.kotlin
 *.iws
 *.iml
 *.ipr
@@ -41,3 +42,4 @@ bin/
 tmp/
 conf/
 data/
+logs/

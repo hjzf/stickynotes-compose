@@ -6,24 +6,23 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.TextFieldScrollState
 import androidx.compose.foundation.text.rememberTextFieldVerticalScrollState
 import androidx.compose.material.Divider
 import androidx.compose.material.LocalTextStyle
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
-import androidx.compose.ui.draganddrop.dragData
 import androidx.compose.ui.draganddrop.DragData
+import androidx.compose.ui.draganddrop.dragData
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -34,18 +33,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.util.fastJoinToString
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import logic.*
+import logic.DataStore
+import logic.Note
+import logic.getNoteColor
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import tool.clearAllHtmlTags
 import tool.isImageName
 import tool.unescapeHtml4
 import ui.SvgIcons
 import ui.components.ButtonWithIcon
+import ui.components.CustomVerticalScrollbar
 import ui.icons.*
+
+private val log: Logger = LoggerFactory.getLogger("RawTextView")
 
 @OptIn(
     FlowPreview::class,
@@ -90,57 +94,61 @@ fun RawTextView(
     val dragAndDropTarget = remember {
         object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
-                when (val dragData = event.dragData()) {
-                    is DragData.Text -> {
-                        val oldText = textFieldState.value.text
-                        val prefix = if (oldText.isNotEmpty() && !oldText.endsWith("\n")) {
-                            oldText + "\n"
-                        } else {
-                            oldText
-                        }
-                        val newText = prefix + dragData.readText().clearAllHtmlTags().unescapeHtml4()
-                        textFieldState.value = textFieldState.value.copy(
-                            text = newText,
-                            selection = TextRange(newText.length)
-                        )
-                        if (newText != oldText) {
-                            version.value += 1
-                        }
-                        textFieldFocusRequester.requestFocus()
-                    }
-
-                    is DragData.Image -> {
-                        textFieldFocusRequester.requestFocus()
-                    }
-
-                    is DragData.FilesList -> {
-                        val oldText = textFieldState.value.text
-                        val prefix = if (oldText.isNotEmpty() && !oldText.endsWith("\n")) {
-                            oldText + "\n"
-                        } else {
-                            oldText
-                        }
-                        val newText = prefix + dragData.readFiles().map { filePath ->
-                            val rawFilePath = if (filePath.startsWith("file:/")) {
-                                filePath.substring(6)
+                try {
+                    when (val dragData = event.dragData()) {
+                        is DragData.Text -> {
+                            val oldText = textFieldState.value.text
+                            val prefix = if (oldText.isNotEmpty() && !oldText.endsWith("\n")) {
+                                oldText + "\n"
                             } else {
-                                filePath
+                                oldText
                             }
-                            if (rawFilePath.isImageName()) {
-                                "# image\n${rawFilePath}"
-                            } else {
-                                rawFilePath
+                            val newText = prefix + dragData.readText().clearAllHtmlTags().unescapeHtml4()
+                            textFieldState.value = textFieldState.value.copy(
+                                text = newText,
+                                selection = TextRange(newText.length)
+                            )
+                            if (newText != oldText) {
+                                version.value += 1
                             }
-                        }.fastJoinToString("\n")
-                        textFieldState.value = textFieldState.value.copy(
-                            text = newText,
-                            selection = TextRange(newText.length)
-                        )
-                        if (newText != oldText) {
-                            version.value += 1
+                            textFieldFocusRequester.requestFocus()
                         }
-                        textFieldFocusRequester.requestFocus()
+
+                        is DragData.Image -> {
+                            textFieldFocusRequester.requestFocus()
+                        }
+
+                        is DragData.FilesList -> {
+                            val oldText = textFieldState.value.text
+                            val prefix = if (oldText.isNotEmpty() && !oldText.endsWith("\n")) {
+                                oldText + "\n"
+                            } else {
+                                oldText
+                            }
+                            val newText = prefix + dragData.readFiles().joinToString("\n") { filePath ->
+                                val rawFilePath = if (filePath.startsWith("file:/")) {
+                                    filePath.substring(6)
+                                } else {
+                                    filePath
+                                }
+                                if (rawFilePath.isImageName()) {
+                                    "# image\n${rawFilePath}"
+                                } else {
+                                    rawFilePath
+                                }
+                            }
+                            textFieldState.value = textFieldState.value.copy(
+                                text = newText,
+                                selection = TextRange(newText.length)
+                            )
+                            if (newText != oldText) {
+                                version.value += 1
+                            }
+                            textFieldFocusRequester.requestFocus()
+                        }
                     }
+                } catch (e: Exception) {
+                    log.error("Failed to get data", e)
                 }
                 return true
             }
@@ -202,7 +210,7 @@ fun RawTextView(
                     innerTextField()
                 }
             )
-            VerticalScrollbar(textFieldVerticalScrollState)
+            CustomVerticalScrollbar(rememberScrollbarAdapter(textFieldVerticalScrollState))
         }
         val tipsDialogVisible = remember { mutableStateOf(false) }
         AnimatedVisibility(
@@ -290,43 +298,5 @@ fun RawTextView(
                 }
             }
         }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun BoxScope.VerticalScrollbar(textFieldVerticalScrollState: TextFieldScrollState) {
-    val hoverInteractionSource = remember { MutableInteractionSource() }
-    val hovered = hoverInteractionSource.collectIsHoveredAsState()
-    val scrollbarVisible = remember { mutableStateOf(false) }
-    LaunchedEffect(hovered.value) {
-        if (hovered.value) {
-            scrollbarVisible.value = true
-        } else {
-            delay(2000)
-            scrollbarVisible.value = false
-        }
-    }
-    Box(
-        modifier = Modifier.Companion.align(Alignment.CenterEnd)
-            .width(12.dp)
-            .fillMaxHeight()
-            .background(color = Color.Transparent)
-            .hoverable(interactionSource = hoverInteractionSource, enabled = true),
-    ) {
-        VerticalScrollbar(
-            adapter = rememberScrollbarAdapter(textFieldVerticalScrollState),
-            modifier = Modifier.align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .background(color = Color.Transparent),
-            style = ScrollbarStyle(
-                minimalHeight = 10.dp,
-                thickness = if (scrollbarVisible.value) 12.dp else 2.dp,
-                shape = RoundedCornerShape(0.dp),
-                hoverDurationMillis = 300,
-                unhoverColor = Color(0xff8b8b8b),
-                hoverColor = Color(0xff636363)
-            )
-        )
     }
 }

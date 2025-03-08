@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.stickynotes"
-version = "1.0.11"
+version = "1.0.12"
 
 repositories {
 //    maven("https://maven.aliyun.com/repository/public")
@@ -30,6 +30,8 @@ dependencies {
     implementation("org.apache.lucene:lucene-analysis-common:10.1.0")
     implementation("org.apache.lucene:lucene-queryparser:10.1.0")
     implementation("cn.shenyanchao.ik-analyzer:ik-analyzer:9.0.0")
+    implementation("org.slf4j:slf4j-api:2.0.17")
+    implementation("ch.qos.logback:logback-classic:1.5.17")
 }
 
 compose.desktop {
@@ -40,9 +42,19 @@ compose.desktop {
             // configurationFiles.from("proguard-rules.pro")
         }
         nativeDistributions {
+            modules(
+                "java.base",
+                "java.datatransfer",
+                "java.desktop",
+                "java.logging",
+                "java.prefs",
+                "java.xml",
+                "java.naming", // for logback
+                "jdk.crypto.ec"
+            )
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "stickynotes"
-            packageVersion = "1.0.11"
+            packageVersion = "1.0.12"
             description = "stickynotes"
             vendor = "Sticky Notes"
             macOS {

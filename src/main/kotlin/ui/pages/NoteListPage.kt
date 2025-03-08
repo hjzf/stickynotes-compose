@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -27,54 +26,81 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import logic.DataStore
 import logic.NoteCard
 import logic.ProfileState
 import logic.getNoteColor
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import ui.SvgIcons
 import ui.components.ButtonWithIcon
+import ui.components.CustomVerticalScrollbar
 import ui.icons.winClose
 import ui.icons.winMore
 import ui.icons.winSearch
 import java.util.regex.Pattern
 
+private val log: Logger = LoggerFactory.getLogger("NoteListPage")
+
 private fun calculateAnnotationText(text: String, searchText: String): AnnotatedString {
-    return if (searchText.isEmpty()) {
-        AnnotatedString(text = text)
-    } else {
-        buildAnnotatedString {
-            append(text)
-            Regex(Pattern.quote(searchText), RegexOption.IGNORE_CASE).findAll(text).forEach {
-                addStyle(SpanStyle(background = Color.Yellow, color = Color.Black), it.range.first, it.range.last + 1)
+    try {
+        return if (searchText.isEmpty()) {
+            AnnotatedString(text = text)
+        } else {
+            buildAnnotatedString {
+                append(text)
+                Regex(Pattern.quote(searchText), RegexOption.IGNORE_CASE).findAll(text).forEach {
+                    addStyle(SpanStyle(background = Color.Yellow, color = Color.Black), it.range.first, it.range.last + 1)
+                }
             }
         }
+    } catch (e: Exception) {
+        log.error("calculateAnnotationText error", e)
+        return AnnotatedString(text = text)
     }
 }
 
 private suspend fun openNote(card: NoteCard, searchText: String) {
-    if (searchText.isEmpty()) {
-        DataStore.updateNoteVisible(
-            card.noteId, true
-        )
-    } else {
-        DataStore.updateNoteVisibleAndPosition(
-            card.noteId, true, card.position1, card.position2
-        )
+    try {
+        if (searchText.isEmpty()) {
+            DataStore.updateNoteVisible(
+                card.noteId, true
+            )
+        } else {
+            DataStore.updateNoteVisibleAndPosition(
+                card.noteId, true, card.position1, card.position2
+            )
+        }
+    } catch (e: Exception) {
+        log.error("openNote error", e)
     }
 }
 
 private suspend fun closeNote(card: NoteCard) {
-    DataStore.updateNoteVisible(card.noteId, false)
+    try {
+        DataStore.updateNoteVisible(card.noteId, false)
+    } catch (e: Exception) {
+        log.error("closeNote error", e)
+    }
 }
 
 private fun exportMarkdown(card: NoteCard) {
-    DataStore.exportMarkdown(card.noteId)
+    try {
+        DataStore.exportMarkdown(card.noteId)
+    } catch (e: Exception) {
+        log.error("exportMarkdown error", e)
+    }
 }
 
 private suspend fun deleteNote(card: NoteCard) {
-    DataStore.deleteNote(card.noteId)
+    try {
+        DataStore.deleteNote(card.noteId)
+    } catch (e: Exception) {
+        log.error("deleteNote error", e)
+    }
 }
 
 @Composable
@@ -146,7 +172,7 @@ fun NoteListPage(lazyListState: LazyListState = rememberLazyListState()) {
                 NoteCard(index, cards.value.lastIndex, card, searchText.value, localProfileState)
             }
         }
-        VerticalScrollbar(lazyListState)
+        CustomVerticalScrollbar(rememberScrollbarAdapter(lazyListState))
     }
 }
 
@@ -214,18 +240,23 @@ private fun LazyItemScope.NoteCard(
     val hoverInteractionSource = remember { MutableInteractionSource() }
     val extraEnterInteraction = remember { mutableStateOf<HoverInteraction.Enter?>(null) }
     LaunchedEffect(expanded.value) {
-        if (expanded.value) {
-            val enter = HoverInteraction.Enter()
-            if (hoverInteractionSource.tryEmit(enter)) {
-                extraEnterInteraction.value = enter
-            }
-        } else {
-            if (extraEnterInteraction.value != null) {
-                delay(200) // optimize user experience
-                if (hoverInteractionSource.tryEmit(HoverInteraction.Exit(extraEnterInteraction.value!!))) {
-                    extraEnterInteraction.value = null
+        try {
+            if (expanded.value) {
+                val enter = HoverInteraction.Enter()
+                if (hoverInteractionSource.tryEmit(enter)) {
+                    extraEnterInteraction.value = enter
+                }
+            } else {
+                if (extraEnterInteraction.value != null) {
+                    delay(200) // optimize user experience
+                    if (hoverInteractionSource.tryEmit(HoverInteraction.Exit(extraEnterInteraction.value!!))) {
+                        extraEnterInteraction.value = null
+                    }
                 }
             }
+        } catch (ignore: CancellationException) {
+        } catch (e: Exception) {
+            log.error("HoverInteraction error", e)
         }
     }
     val hovered = hoverInteractionSource.collectIsHoveredAsState()
@@ -436,38 +467,5 @@ private fun LazyItemScope.NoteCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun BoxScope.VerticalScrollbar(lazyListState: LazyListState) {
-    val hoverInteractionSource = remember { MutableInteractionSource() }
-    val hovered = hoverInteractionSource.collectIsHoveredAsState()
-    val scrollbarVisible = remember { mutableStateOf(false) }
-    LaunchedEffect(hovered.value) {
-        if (hovered.value) {
-            scrollbarVisible.value = true
-        } else {
-            delay(2000)
-            scrollbarVisible.value = false
-        }
-    }
-    Box(
-        modifier = Modifier.Companion.align(Alignment.CenterEnd).width(12.dp).fillMaxHeight()
-            .background(color = Color.Transparent)
-            .hoverable(interactionSource = hoverInteractionSource, enabled = true),
-    ) {
-        VerticalScrollbar(
-            adapter = rememberScrollbarAdapter(lazyListState),
-            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().background(color = Color.Transparent),
-            style = ScrollbarStyle(
-                minimalHeight = 10.dp,
-                thickness = if (scrollbarVisible.value) 12.dp else 2.dp,
-                shape = RoundedCornerShape(0.dp),
-                hoverDurationMillis = 300,
-                unhoverColor = Color(0xff8b8b8b),
-                hoverColor = Color(0xff636363)
-            )
-        )
     }
 }

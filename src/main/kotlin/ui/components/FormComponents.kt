@@ -22,6 +22,8 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import ui.SvgIcons
 import ui.icons.Watermelon
 import java.awt.Component
@@ -31,6 +33,8 @@ import javax.swing.JDialog
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileSystemView
 import kotlin.math.roundToInt
+
+private val log: Logger = LoggerFactory.getLogger("FormComponents")
 
 @Composable
 private fun Label(
@@ -139,29 +143,33 @@ private fun DirectoryChooser(
     val layoutDirection = LocalLayoutDirection.current
     DisposableEffect(version) {
         val job = GlobalScope.launch(Dispatchers.IO) {
-            val currentDirectory = if (value.exists() && value.isDirectory) {
-                value
-            } else {
-                File(System.getProperty("user.dir"))
-            }
-            val chooser = object : JFileChooser(currentDirectory, FileSystemView.getFileSystemView()) {
-                @Throws(HeadlessException::class)
-                override fun createDialog(parent: Component?): JDialog {
-                    val dialog = super.createDialog(parent)
-                    dialog.setIconImage(
-                        image.toAwtImage(density = density, layoutDirection = layoutDirection)
-                    )
-                    return dialog
+            try {
+                val currentDirectory = if (value.exists() && value.isDirectory) {
+                    value
+                } else {
+                    File(System.getProperty("user.dir"))
                 }
-            }
-            chooser.dialogTitle = title
-            chooser.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-            chooser.isAcceptAllFileFilterUsed = false
-            if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                val file = chooser.selectedFile
-                if (file != null && file.exists() && file.isDirectory && file.canRead() && file.canWrite()) {
-                    onValueChange(file)
+                val chooser = object : JFileChooser(currentDirectory, FileSystemView.getFileSystemView()) {
+                    @Throws(HeadlessException::class)
+                    override fun createDialog(parent: Component?): JDialog {
+                        val dialog = super.createDialog(parent)
+                        dialog.setIconImage(
+                            image.toAwtImage(density = density, layoutDirection = layoutDirection)
+                        )
+                        return dialog
+                    }
                 }
+                chooser.dialogTitle = title
+                chooser.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+                chooser.isAcceptAllFileFilterUsed = false
+                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+                    val file = chooser.selectedFile
+                    if (file != null && file.exists() && file.isDirectory && file.canRead() && file.canWrite()) {
+                        onValueChange(file)
+                    }
+                }
+            } catch (e: Exception) {
+                log.error("DirectoryChooser error", e)
             }
         }
         onDispose {

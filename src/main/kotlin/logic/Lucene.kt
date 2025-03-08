@@ -7,6 +7,8 @@ import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.Sort
 import org.apache.lucene.search.SortField
 import org.apache.lucene.store.MMapDirectory
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.wltea.analyzer.lucene.IKAnalyzer
 import tool.formatTimestamp
 import java.nio.file.Path
@@ -14,22 +16,24 @@ import java.util.*
 
 object Lucene {
 
+    private val log: Logger = LoggerFactory.getLogger("Lucene")
+
     fun query(q: String, notes: Collection<Note>, indexPath: Path): List<NoteCard> {
-        if (q.isEmpty()) {
-            return notes.sortedByDescending { it.updateTime }.map {
-                NoteCard(
-                    key = it.id,
-                    noteId = it.id,
-                    position1 = it.position1,
-                    position2 = it.position2,
-                    description = it.description,
-                    visible = it.visible,
-                    style = it.style,
-                    updateTime = formatTimestamp(it.updateTime),
-                )
-            }
-        }
         try {
+            if (q.isEmpty()) {
+                return notes.sortedByDescending { it.updateTime }.map {
+                    NoteCard(
+                        key = it.id,
+                        noteId = it.id,
+                        position1 = it.position1,
+                        position2 = it.position2,
+                        description = it.description,
+                        visible = it.visible,
+                        style = it.style,
+                        updateTime = formatTimestamp(it.updateTime),
+                    )
+                }
+            }
             MMapDirectory.open(indexPath).use { directory ->
                 IKAnalyzer().use { analyzer ->
                     DirectoryReader.open(directory).use { directoryReader ->
@@ -90,73 +94,92 @@ object Lucene {
             }
             return emptyList()
         } catch (e: Exception) {
-            e.printStackTrace()
+            log.error("Failed to query", e)
             return emptyList()
         }
     }
 
     fun updateIndexForNote(noteId: String, blocks: List<Block>, updateTime: Long, indexPath: Path) {
-        MMapDirectory.open(indexPath).use { directory ->
-            IKAnalyzer().use { analyzer ->
-                val indexWriterConfig = IndexWriterConfig(analyzer)
-                indexWriterConfig.setCommitOnClose(true)
-                IndexWriter(directory, indexWriterConfig).use { indexWriter ->
-                    indexWriter.deleteDocuments(Term(NOTE_ID, noteId))
-                    val documents = ArrayList<Document>(blocks.size)
-                    blocks.withIndex().forEach { (index, block) ->
-                        when (block.type) {
-                            BlockType.TEXT, BlockType.BOLD, BlockType.UNDERLINE, BlockType.ITALIC, BlockType.LINE_THROUGH -> {
-                                documents.add(createDocument(noteId, updateTime, block, index.toString()))
-                            }
-
-                            BlockType.IMAGE -> {}
-                        }
-                    }
-                    indexWriter.addDocuments(documents)
-                }
-            }
-        }
-    }
-
-    fun updateIndexForNotes(list: Collection<Pair<Note, List<Block>>>, indexPath: Path) {
-        MMapDirectory.open(indexPath).use { directory ->
-            IKAnalyzer().use { analyzer ->
-                val indexWriterConfig = IndexWriterConfig(analyzer)
-                indexWriterConfig.setCommitOnClose(true)
-                IndexWriter(directory, indexWriterConfig).use { indexWriter ->
-                    val documents = ArrayList<Document>()
-                    list.forEach { (note, blocks) ->
-                        indexWriter.deleteDocuments(Term(NOTE_ID, note.id))
+        try {
+            MMapDirectory.open(indexPath).use { directory ->
+                IKAnalyzer().use { analyzer ->
+                    val indexWriterConfig = IndexWriterConfig(analyzer)
+                    indexWriterConfig.setCommitOnClose(true)
+                    IndexWriter(directory, indexWriterConfig).use { indexWriter ->
+                        indexWriter.deleteDocuments(Term(NOTE_ID, noteId))
+                        val documents = ArrayList<Document>(blocks.size)
                         blocks.withIndex().forEach { (index, block) ->
                             when (block.type) {
                                 BlockType.TEXT, BlockType.BOLD, BlockType.UNDERLINE, BlockType.ITALIC, BlockType.LINE_THROUGH -> {
-                                    documents.add(createDocument(note.id, note.updateTime, block, index.toString()))
+                                    val document = createDocument(noteId, updateTime, block, index.toString())
+                                    if (document != null) {
+                                        documents.add(document)
+                                    }
                                 }
 
                                 BlockType.IMAGE -> {}
                             }
                         }
+                        indexWriter.addDocuments(documents)
                     }
-                    indexWriter.addDocuments(documents)
                 }
             }
+        } catch (e: Exception) {
+            log.error("Failed to update index", e)
         }
     }
 
-    private fun createDocument(noteId: String, updateTime: Long, block: Block, order: String): Document {
-        val indexFieldValue = StringBuilder(block.content.lowercase(Locale.getDefault())).append(' ')
-            .append(formatTimestamp(updateTime, "yyyyMMdd")).append(' ')
-            .append(formatTimestamp(updateTime, "yyyy/MM/dd")).append(' ')
-            .append(formatTimestamp(updateTime, "yyyy-MM-dd")).append(' ')
-            .append(formatTimestamp(updateTime, "yyyy_MM_dd")).toString()
-        val document = Document()
-        document.add(TextField(INDEX_FIELD_NAME, indexFieldValue, Field.Store.NO))
-        document.add(StringField(NOTE_ID, noteId, Field.Store.YES))
-        document.add(StringField(BLOCK_ID, block.id.toString(), Field.Store.YES))
-        document.add(StoredField(CONTENT, block.content))
-        document.add(StoredField(ORDER, order))
-        document.add(NumericDocValuesField(UPDATE_TIME, updateTime))
-        return document
+    fun updateIndexForNotes(list: Collection<Pair<Note, List<Block>>>, indexPath: Path) {
+        try {
+            MMapDirectory.open(indexPath).use { directory ->
+                IKAnalyzer().use { analyzer ->
+                    val indexWriterConfig = IndexWriterConfig(analyzer)
+                    indexWriterConfig.setCommitOnClose(true)
+                    IndexWriter(directory, indexWriterConfig).use { indexWriter ->
+                        val documents = ArrayList<Document>()
+                        list.forEach { (note, blocks) ->
+                            indexWriter.deleteDocuments(Term(NOTE_ID, note.id))
+                            blocks.withIndex().forEach { (index, block) ->
+                                when (block.type) {
+                                    BlockType.TEXT, BlockType.BOLD, BlockType.UNDERLINE, BlockType.ITALIC, BlockType.LINE_THROUGH -> {
+                                        val document = createDocument(note.id, note.updateTime, block, index.toString())
+                                        if (document != null) {
+                                            documents.add(document)
+                                        }
+                                    }
+
+                                    BlockType.IMAGE -> {}
+                                }
+                            }
+                        }
+                        indexWriter.addDocuments(documents)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            log.error("Failed to update index for notes", e)
+        }
+    }
+
+    private fun createDocument(noteId: String, updateTime: Long, block: Block, order: String): Document? {
+        try {
+            val indexFieldValue = StringBuilder(block.content.lowercase(Locale.getDefault())).append(' ')
+                .append(formatTimestamp(updateTime, "yyyyMMdd")).append(' ')
+                .append(formatTimestamp(updateTime, "yyyy/MM/dd")).append(' ')
+                .append(formatTimestamp(updateTime, "yyyy-MM-dd")).append(' ')
+                .append(formatTimestamp(updateTime, "yyyy_MM_dd")).toString()
+            val document = Document()
+            document.add(TextField(INDEX_FIELD_NAME, indexFieldValue, Field.Store.NO))
+            document.add(StringField(NOTE_ID, noteId, Field.Store.YES))
+            document.add(StringField(BLOCK_ID, block.id.toString(), Field.Store.YES))
+            document.add(StoredField(CONTENT, block.content))
+            document.add(StoredField(ORDER, order))
+            document.add(NumericDocValuesField(UPDATE_TIME, updateTime))
+            return document
+        } catch (e: Exception) {
+            log.error("Failed to create document", e)
+            return null
+        }
     }
 
     private const val INDEX_FIELD_NAME = "index_field"

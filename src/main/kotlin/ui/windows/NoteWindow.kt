@@ -4,10 +4,7 @@ import LocalApplicationLocalization
 import LocalProfileState
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
@@ -50,6 +47,7 @@ private fun RowScope.TopBar(
     onPinClick: () -> Unit,
     onCloseClick: () -> Unit,
     onDownClick: () -> Unit,
+    onMinimizeClick: () -> Unit,
 ) {
     val localProfileState = LocalProfileState.current
     val localApplicationLocalization = LocalApplicationLocalization.current
@@ -86,7 +84,32 @@ private fun RowScope.TopBar(
             onClick = onDownClick
         )
     }
-    Spacer(modifier = Modifier.weight(1f))
+    Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+        ContextMenuArea(
+            items = {
+                listOf(
+                    ContextMenuItem(
+                        localApplicationLocalization.minimize,
+                        onMinimizeClick
+                    ),
+                    ContextMenuItem(
+                        if (alwaysOnTop) {
+                            localApplicationLocalization.unpin
+                        } else {
+                            localApplicationLocalization.pin
+                        },
+                        onPinClick
+                    ),
+                    ContextMenuItem(
+                        localApplicationLocalization.closeNote,
+                        onCloseClick
+                    )
+                )
+            }
+        ) {
+            Box(modifier = Modifier.fillMaxSize())
+        }
+    }
     if (tip != "") {
         ButtonWithText(
             text = tip,
@@ -266,6 +289,11 @@ fun NoteWindow(
                             },
                             onDownClick = {
                                 coroutineScope.launch { clipboardSignal.value = true }
+                            },
+                            onMinimizeClick = {
+                                if (!windowState.isMinimized) {
+                                    windowState.isMinimized = true
+                                }
                             }
                         )
                     }

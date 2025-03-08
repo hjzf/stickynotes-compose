@@ -49,12 +49,11 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import logic.*
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import tool.clearAllHtmlTags
@@ -62,6 +61,7 @@ import tool.currentTimeAsTimestamp
 import tool.isImageName
 import tool.unescapeHtml4
 import ui.SvgIcons
+import ui.components.CustomVerticalScrollbar
 import ui.icons.CopyImage
 import ui.icons.DeleteImage
 import ui.icons.OpenImage
@@ -77,8 +77,11 @@ import java.awt.datatransfer.UnsupportedFlavorException
 import java.awt.image.BufferedImage
 import java.io.File
 import java.io.IOException
+import java.util.*
 import javax.imageio.ImageIO
 import kotlin.math.roundToInt
+
+private val log: Logger = LoggerFactory.getLogger("AnotherView")
 
 @OptIn(ExperimentalComposeUiApi::class, FlowPreview::class)
 @Composable
@@ -99,17 +102,25 @@ fun AnotherView(
     val lazyListState = rememberLazyListState(position1, position2)
     val inputHeight = remember { mutableStateOf(position3.dp) }
     LaunchedEffect(Unit) {
-        for (block in DataStore.loadBlocks(note.id)) {
-            blocks.add(block)
-            if (block.id > maxBlockId.value) {
-                maxBlockId.value = block.id
+        try {
+            for (block in DataStore.loadBlocks(note.id)) {
+                blocks.add(block)
+                if (block.id > maxBlockId.value) {
+                    maxBlockId.value = block.id
+                }
             }
+        } catch (e: Exception) {
+            log.error("Failed to load blocks", e)
         }
     }
     val version = remember { mutableStateOf(0L) }
     val state = rememberReorderableLazyListState(lazyListState) { from, to ->
-        blocks.add(to.index, blocks.removeAt(from.index))
-        version.value += 1
+        try {
+            blocks.add(to.index, blocks.removeAt(from.index))
+            version.value += 1
+        } catch (e: Exception) {
+            log.error("Failed to reorder blocks", e)
+        }
     }
     LaunchedEffect(clipboardSignal) {
         if (clipboardSignal) {
@@ -141,11 +152,12 @@ fun AnotherView(
                         lazyListState.animateScrollToItem(blocks.lastIndex)
                     }
                 }
+                delay(600)
+                onClipboardSignalChange(false)
+            } catch (ignore: CancellationException) {
             } catch (e: Exception) {
-                e.printStackTrace()
+                log.error("Failed to get clipboard data", e)
             }
-            delay(600)
-            onClipboardSignalChange(false)
         }
     }
     val coroutineScope = rememberCoroutineScope()
@@ -198,36 +210,14 @@ fun AnotherView(
     val dragAndDropTarget = remember {
         object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
-                when (val dragData = event.dragData()) {
-                    is DragData.Image -> {
-                    }
-
-                    is DragData.Text -> {
-                        val text = dragData.readText().clearAllHtmlTags().unescapeHtml4()
-                        blocks.add(Block(BlockType.TEXT, text, ++maxBlockId.value))
-                        version.value += 1
-                        coroutineScope.launch {
-                            if (blocks.isNotEmpty()) {
-                                lazyListState.animateScrollToItem(blocks.lastIndex)
-                            }
+                try {
+                    when (val dragData = event.dragData()) {
+                        is DragData.Image -> {
                         }
-                    }
 
-                    is DragData.FilesList -> {
-                        dragData.readFiles().forEach { filePath ->
-                            val rawFilePath = if (filePath.startsWith("file:/")) {
-                                filePath.substring(6)
-                            } else {
-                                filePath
-                            }
-                            if (rawFilePath.isImageName()) {
-                                val name = rawFilePath.substringAfterLast("/")
-                                val absoluteFile = File(localProfileState.dataPath, name)
-                                File(rawFilePath).copyTo(absoluteFile, overwrite = true)
-                                blocks.add(Block(BlockType.IMAGE, "./${name}", ++maxBlockId.value))
-                            } else {
-                                blocks.add(Block(BlockType.TEXT, rawFilePath, ++maxBlockId.value))
-                            }
+                        is DragData.Text -> {
+                            val text = dragData.readText().clearAllHtmlTags().unescapeHtml4()
+                            blocks.add(Block(BlockType.TEXT, text, ++maxBlockId.value))
                             version.value += 1
                             coroutineScope.launch {
                                 if (blocks.isNotEmpty()) {
@@ -235,7 +225,33 @@ fun AnotherView(
                                 }
                             }
                         }
+
+                        is DragData.FilesList -> {
+                            dragData.readFiles().forEach { filePath ->
+                                val rawFilePath = if (filePath.startsWith("file:/")) {
+                                    filePath.substring(6)
+                                } else {
+                                    filePath
+                                }
+                                if (rawFilePath.isImageName()) {
+                                    val name = rawFilePath.substringAfterLast("/")
+                                    val absoluteFile = File(localProfileState.dataPath, name)
+                                    File(rawFilePath).copyTo(absoluteFile, overwrite = true)
+                                    blocks.add(Block(BlockType.IMAGE, "./${name}", ++maxBlockId.value))
+                                } else {
+                                    blocks.add(Block(BlockType.TEXT, rawFilePath, ++maxBlockId.value))
+                                }
+                                version.value += 1
+                                coroutineScope.launch {
+                                    if (blocks.isNotEmpty()) {
+                                        lazyListState.animateScrollToItem(blocks.lastIndex)
+                                    }
+                                }
+                            }
+                        }
                     }
+                } catch (e: Exception) {
+                    log.error("Failed to get data", e)
                 }
                 return true
             }
@@ -311,8 +327,12 @@ fun AnotherView(
                                     copyText = {
                                         if (selectedIndex.value != index && block.content.isNotEmpty()) {
                                             coroutineScope.launch {
-                                                localClipboard.setClipEntry(ClipEntry(StringSelection(block.content)))
-                                                copiedIndex.value = index
+                                                try {
+                                                    localClipboard.setClipEntry(ClipEntry(StringSelection(block.content)))
+                                                    copiedIndex.value = index
+                                                } catch (e: Exception) {
+                                                    log.error("Failed to copy text", e)
+                                                }
                                             }
                                         }
                                     },
@@ -366,6 +386,7 @@ fun AnotherView(
                                                     }
                                                 }
                                             } catch (e: Exception) {
+                                                log.error("Failed to open image", e)
                                                 coroutineScope.launch {
                                                     changeTip(localApplicationLocalization.imageOpenFailed, 2000L)
                                                 }
@@ -393,6 +414,7 @@ fun AnotherView(
                                                     )
                                                 }
                                             } catch (e: Exception) {
+                                                log.error("Failed to copy image", e)
                                                 coroutineScope.launch {
                                                     changeTip(localApplicationLocalization.imageCopyFailed, 2000L)
                                                 }
@@ -414,7 +436,7 @@ fun AnotherView(
                     }
                 }
             }
-            VerticalScrollbar(lazyListState)
+            CustomVerticalScrollbar(rememberScrollbarAdapter(lazyListState))
         }
         val draggableState = rememberDraggableState {
             with(localDensity) {
@@ -438,39 +460,6 @@ fun AnotherView(
                 localWindowInfo, blocks, maxBlockId, version, coroutineScope, lazyListState, note, localProfileState
             )
         }
-    }
-}
-
-@Composable
-private fun BoxScope.VerticalScrollbar(lazyListState: LazyListState) {
-    val hoverInteractionSource = remember { MutableInteractionSource() }
-    val hovered = hoverInteractionSource.collectIsHoveredAsState()
-    val scrollbarVisible = remember { mutableStateOf(false) }
-    LaunchedEffect(hovered.value) {
-        if (hovered.value) {
-            scrollbarVisible.value = true
-        } else {
-            delay(2000)
-            scrollbarVisible.value = false
-        }
-    }
-    Box(
-        modifier = Modifier.Companion.align(Alignment.CenterEnd).width(12.dp).fillMaxHeight()
-            .background(color = Color.Transparent)
-            .hoverable(interactionSource = hoverInteractionSource, enabled = true),
-    ) {
-        VerticalScrollbar(
-            adapter = rememberScrollbarAdapter(lazyListState),
-            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().background(color = Color.Transparent),
-            style = ScrollbarStyle(
-                minimalHeight = 10.dp,
-                thickness = if (scrollbarVisible.value) 12.dp else 2.dp,
-                shape = RoundedCornerShape(0.dp),
-                hoverDurationMillis = 300,
-                unhoverColor = Color(0xff8b8b8b),
-                hoverColor = Color(0xff636363)
-            )
-        )
     }
 }
 
@@ -680,9 +669,25 @@ private fun TextBlock(
 ) {
     val hoverInteractionSource = remember { MutableInteractionSource() }
     val hovered = hoverInteractionSource.collectIsHoveredAsState()
+    val confirmDialogVisible = remember { mutableStateOf(false) }
+    val blockTypeInputVisible = remember { mutableStateOf(false) }
+    val blockTypeDescription = remember(block) { mutableStateOf(block.type.description) }
     val localApplicationLocalization = LocalApplicationLocalization.current
     val noteColor = remember(profileState.colorTheme, note.style) {
         getNoteColor(profileState.colorTheme, note.style)
+    }
+    LaunchedEffect(blockTypeDescription.value) {
+        val type = blockTypeDescription.value.trim().lowercase(Locale.getDefault())
+        val blockType = when (type) {
+            BlockType.TEXT.description -> BlockType.TEXT
+            BlockType.BOLD.description -> BlockType.BOLD
+            BlockType.ITALIC.description -> BlockType.ITALIC
+            BlockType.UNDERLINE.description -> BlockType.UNDERLINE
+            BlockType.LINE_THROUGH.description -> BlockType.LINE_THROUGH
+            else -> BlockType.TEXT
+        }
+        onBlockTypeChange(blockType)
+        blockTypeDescription.value = blockType.description
     }
     Card(
         modifier = modifier.hoverable(hoverInteractionSource, enabled = true),
@@ -690,173 +695,303 @@ private fun TextBlock(
         border = if (editable) BorderStroke(1.dp, MaterialTheme.colors.primary) else null,
         elevation = if (hovered.value) 1.dp else 0.dp,
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize().combinedClickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    if (profileState.copyWhenClick) {
-                        copyText()
-                    }
-                },
-                onDoubleClick = { makeItEditable() },
-            )
-        ) {
-            if (editable) {
-                BasicTextField(
-                    value = block.content,
-                    onValueChange = {
-                        onValueChange(it.replace("\t", " "))
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (blockTypeInputVisible.value) {
+                BlockTypeInput(
+                    initValue = blockTypeDescription.value,
+                    onConfirm = {
+                        blockTypeDescription.value = it
+                        blockTypeInputVisible.value = false
                     },
-                    modifier = Modifier.padding(horizontal = 10.dp).fillMaxSize().onKeyEvent {
-                        if (it.type == KeyEventType.KeyDown) {
-                            when (it.key) {
-                                Key.B -> {
-                                    if (localWindowInfo.keyboardModifiers.isCtrlPressed) {
-                                        onBlockTypeChange(if (block.type != BlockType.BOLD) BlockType.BOLD else BlockType.TEXT)
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                }
-
-                                Key.I -> {
-                                    if (localWindowInfo.keyboardModifiers.isCtrlPressed) {
-                                        onBlockTypeChange(if (block.type != BlockType.ITALIC) BlockType.ITALIC else BlockType.TEXT)
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                }
-
-                                Key.U -> {
-                                    if (localWindowInfo.keyboardModifiers.isCtrlPressed) {
-                                        onBlockTypeChange(if (block.type != BlockType.UNDERLINE) BlockType.UNDERLINE else BlockType.TEXT)
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                }
-
-                                Key.T -> {
-                                    if (localWindowInfo.keyboardModifiers.isCtrlPressed) {
-                                        onBlockTypeChange(if (block.type != BlockType.LINE_THROUGH) BlockType.LINE_THROUGH else BlockType.TEXT)
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                }
-
-                                else -> {
-                                    false
-                                }
-                            }
-                        } else {
-                            false
+                    buttonText = localApplicationLocalization.ok,
+                    profileState = profileState,
+                    noteColor = noteColor,
+                )
+            }
+            Box(
+                modifier = Modifier.fillMaxSize().combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {
+                        if (profileState.copyWhenClick) {
+                            copyText()
                         }
                     },
-                    singleLine = false,
-                    cursorBrush = SolidColor(noteColor.font),
-                    textStyle = LocalTextStyle.current.copy(
-                        fontSize = profileState.fontSize.sp,
-                        lineHeight = (profileState.fontSize + 8).sp,
-                        fontFamily = when (profileState.fontFamily) {
-                            FontFamily.Serif.name -> FontFamily.Serif
-                            FontFamily.SansSerif.name -> FontFamily.SansSerif
-                            FontFamily.Monospace.name -> FontFamily.Monospace
-                            FontFamily.Cursive.name -> FontFamily.Cursive
-                            else -> FontFamily.Default
-                        },
-                        textDecoration = when (block.type) {
-                            BlockType.UNDERLINE -> TextDecoration.Underline
-                            BlockType.LINE_THROUGH -> TextDecoration.LineThrough
-                            else -> TextDecoration.None
-                        },
-                        fontStyle = when (block.type) {
-                            BlockType.ITALIC -> FontStyle.Italic
-                            else -> FontStyle.Normal
-                        },
-                        fontWeight = when (block.type) {
-                            BlockType.BOLD -> FontWeight.Bold
-                            else -> FontWeight(profileState.fontWeight)
-                        },
-                        color = noteColor.font,
-                    ),
+                    onDoubleClick = { makeItEditable() },
                 )
-            } else {
-                ContextMenuArea(
-                    items = {
-                        listOf(
-                            ContextMenuItem(localApplicationLocalization.copyText) {
-                                copyText()
+            ) {
+                if (editable) {
+                    BasicTextField(
+                        value = block.content,
+                        onValueChange = {
+                            onValueChange(it.replace("\t", " "))
+                        },
+                        modifier = Modifier.padding(horizontal = 10.dp).fillMaxSize().onKeyEvent {
+                            if (it.type == KeyEventType.KeyDown) {
+                                when (it.key) {
+                                    Key.B -> {
+                                        if (localWindowInfo.keyboardModifiers.isCtrlPressed) {
+                                            onBlockTypeChange(if (block.type != BlockType.BOLD) BlockType.BOLD else BlockType.TEXT)
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    }
+
+                                    Key.I -> {
+                                        if (localWindowInfo.keyboardModifiers.isCtrlPressed) {
+                                            onBlockTypeChange(if (block.type != BlockType.ITALIC) BlockType.ITALIC else BlockType.TEXT)
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    }
+
+                                    Key.U -> {
+                                        if (localWindowInfo.keyboardModifiers.isCtrlPressed) {
+                                            onBlockTypeChange(if (block.type != BlockType.UNDERLINE) BlockType.UNDERLINE else BlockType.TEXT)
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    }
+
+                                    Key.T -> {
+                                        if (localWindowInfo.keyboardModifiers.isCtrlPressed) {
+                                            onBlockTypeChange(if (block.type != BlockType.LINE_THROUGH) BlockType.LINE_THROUGH else BlockType.TEXT)
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    }
+
+                                    else -> {
+                                        false
+                                    }
+                                }
+                            } else {
+                                false
+                            }
+                        },
+                        singleLine = false,
+                        cursorBrush = SolidColor(noteColor.font),
+                        textStyle = LocalTextStyle.current.copy(
+                            fontSize = profileState.fontSize.sp,
+                            lineHeight = (profileState.fontSize + 8).sp,
+                            fontFamily = when (profileState.fontFamily) {
+                                FontFamily.Serif.name -> FontFamily.Serif
+                                FontFamily.SansSerif.name -> FontFamily.SansSerif
+                                FontFamily.Monospace.name -> FontFamily.Monospace
+                                FontFamily.Cursive.name -> FontFamily.Cursive
+                                else -> FontFamily.Default
                             },
-                            ContextMenuItem(localApplicationLocalization.deleteText) {
-                                deleteText()
+                            textDecoration = when (block.type) {
+                                BlockType.UNDERLINE -> TextDecoration.Underline
+                                BlockType.LINE_THROUGH -> TextDecoration.LineThrough
+                                else -> TextDecoration.None
                             },
+                            fontStyle = when (block.type) {
+                                BlockType.ITALIC -> FontStyle.Italic
+                                else -> FontStyle.Normal
+                            },
+                            fontWeight = when (block.type) {
+                                BlockType.BOLD -> FontWeight.Bold
+                                else -> FontWeight(profileState.fontWeight)
+                            },
+                            color = noteColor.font,
+                        ),
+                    )
+                } else {
+                    ContextMenuArea(
+                        items = {
+                            listOf(
+                                ContextMenuItem(localApplicationLocalization.copyText) {
+                                    copyText()
+                                },
+                                ContextMenuItem(localApplicationLocalization.deleteText) {
+                                    confirmDialogVisible.value = true
+                                },
+//                                ContextMenuItem(localApplicationLocalization.markAs) {
+//                                    blockTypeInputVisible.value = true
+//                                },
+                            )
+                        }
+                    ) {
+                        Text(
+                            text = block.content,
+                            modifier = Modifier.padding(horizontal = 10.dp).fillMaxSize(),
+                            fontSize = profileState.fontSize.sp,
+                            lineHeight = (profileState.fontSize + 8).sp,
+                            fontFamily = when (profileState.fontFamily) {
+                                FontFamily.Serif.name -> FontFamily.Serif
+                                FontFamily.SansSerif.name -> FontFamily.SansSerif
+                                FontFamily.Monospace.name -> FontFamily.Monospace
+                                FontFamily.Cursive.name -> FontFamily.Cursive
+                                else -> FontFamily.Default
+                            },
+                            textDecoration = when (block.type) {
+                                BlockType.UNDERLINE -> TextDecoration.Underline
+                                BlockType.LINE_THROUGH -> TextDecoration.LineThrough
+                                else -> TextDecoration.None
+                            },
+                            fontStyle = when (block.type) {
+                                BlockType.ITALIC -> FontStyle.Italic
+                                else -> FontStyle.Normal
+                            },
+                            fontWeight = when (block.type) {
+                                BlockType.BOLD -> FontWeight.Bold
+                                else -> FontWeight(profileState.fontWeight)
+                            },
+                            color = noteColor.font,
                         )
                     }
-                ) {
-                    Text(
-                        text = block.content,
-                        modifier = Modifier.padding(horizontal = 10.dp).fillMaxSize(),
-                        fontSize = profileState.fontSize.sp,
-                        lineHeight = (profileState.fontSize + 8).sp,
-                        fontFamily = when (profileState.fontFamily) {
-                            FontFamily.Serif.name -> FontFamily.Serif
-                            FontFamily.SansSerif.name -> FontFamily.SansSerif
-                            FontFamily.Monospace.name -> FontFamily.Monospace
-                            FontFamily.Cursive.name -> FontFamily.Cursive
-                            else -> FontFamily.Default
+                }
+                if (hovered.value && block.content.isEmpty()) {
+                    Box(
+                        modifier = Modifier.wrapContentWidth().height((profileState.fontSize + 8).dp)
+                            .align(Alignment.CenterEnd).clickable { deleteText() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Filled.Close, "delete", tint = MaterialTheme.colors.error)
+                    }
+                }
+                if (copied) {
+                    Box(
+                        modifier = Modifier.wrapContentWidth().height((profileState.fontSize + 8).dp)
+                            .align(Alignment.CenterEnd),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = localApplicationLocalization.textCopied,
+                            modifier = Modifier.padding(horizontal = 10.dp),
+                            fontSize = profileState.fontSize.sp,
+                            lineHeight = (profileState.fontSize + 8).sp,
+                            fontFamily = when (profileState.fontFamily) {
+                                FontFamily.Serif.name -> FontFamily.Serif
+                                FontFamily.SansSerif.name -> FontFamily.SansSerif
+                                FontFamily.Monospace.name -> FontFamily.Monospace
+                                FontFamily.Cursive.name -> FontFamily.Cursive
+                                else -> FontFamily.Default
+                            },
+                            fontWeight = FontWeight(profileState.fontWeight),
+                            color = MaterialTheme.colors.secondary,
+                        )
+                    }
+                }
+                if (confirmDialogVisible.value) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            confirmDialogVisible.value = false
                         },
-                        textDecoration = when (block.type) {
-                            BlockType.UNDERLINE -> TextDecoration.Underline
-                            BlockType.LINE_THROUGH -> TextDecoration.LineThrough
-                            else -> TextDecoration.None
+                        backgroundColor = Color.White,
+                        title = {
+                            Text(localApplicationLocalization.confirmDelete, color = Color.Black)
                         },
-                        fontStyle = when (block.type) {
-                            BlockType.ITALIC -> FontStyle.Italic
-                            else -> FontStyle.Normal
+                        text = {
+                            Text(localApplicationLocalization.confirmDeleteThisText, color = Color.Black)
                         },
-                        fontWeight = when (block.type) {
-                            BlockType.BOLD -> FontWeight.Bold
-                            else -> FontWeight(profileState.fontWeight)
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    confirmDialogVisible.value = false
+                                    deleteText()
+                                }
+                            ) { Text(localApplicationLocalization.delete) }
                         },
-                        color = noteColor.font,
+                        dismissButton = {
+                            Button(
+                                onClick = {
+                                    confirmDialogVisible.value = false
+                                }
+                            ) {
+                                Text(localApplicationLocalization.cancel)
+                            }
+                        }
                     )
                 }
             }
-            if (hovered.value && block.content.isEmpty()) {
-                Box(
-                    modifier = Modifier.wrapContentWidth().height((profileState.fontSize + 8).dp)
-                        .align(Alignment.CenterEnd).clickable { deleteText() },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Filled.Close, "delete", tint = MaterialTheme.colors.error)
-                }
+        }
+    }
+}
+
+@Composable
+private fun BlockTypeInput(
+    initValue: String,
+    onConfirm: (String) -> Unit,
+    buttonText: String,
+    profileState: ProfileState,
+    noteColor: NoteColor,
+) {
+    val textFieldValue = remember {
+        mutableStateOf(TextFieldValue(initValue, TextRange(initValue.length)))
+    }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().wrapContentHeight().padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BasicTextField(
+            value = textFieldValue.value,
+            onValueChange = {
+                textFieldValue.value = it
+            },
+            modifier = Modifier
+                .width(100.dp)
+                .height((profileState.fontSize + 16).dp)
+                .border(1.dp, noteColor.border)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .focusRequester(focusRequester)
+                .onKeyEvent {
+                    if (it.type == KeyEventType.KeyUp && it.key == Key.Enter) {
+                        onConfirm(textFieldValue.value.text)
+                    }
+                    false
+                },
+            singleLine = true,
+            cursorBrush = SolidColor(noteColor.font),
+            textStyle = LocalTextStyle.current.copy(
+                fontWeight = FontWeight(profileState.fontWeight),
+                fontSize = profileState.fontSize.sp,
+                lineHeight = (profileState.fontSize + 8).sp,
+                fontFamily = when (profileState.fontFamily) {
+                    FontFamily.Serif.name -> FontFamily.Serif
+                    FontFamily.SansSerif.name -> FontFamily.SansSerif
+                    FontFamily.Monospace.name -> FontFamily.Monospace
+                    FontFamily.Cursive.name -> FontFamily.Cursive
+                    else -> FontFamily.Default
+                },
+                color = noteColor.font,
+            ),
+            decorationBox = { innerTextField ->
+                innerTextField()
             }
-            if (copied) {
-                Box(
-                    modifier = Modifier.wrapContentWidth().height((profileState.fontSize + 8).dp)
-                        .align(Alignment.CenterEnd),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = localApplicationLocalization.textCopied,
-                        modifier = Modifier.padding(horizontal = 10.dp),
-                        fontSize = profileState.fontSize.sp,
-                        lineHeight = (profileState.fontSize + 8).sp,
-                        fontFamily = when (profileState.fontFamily) {
-                            FontFamily.Serif.name -> FontFamily.Serif
-                            FontFamily.SansSerif.name -> FontFamily.SansSerif
-                            FontFamily.Monospace.name -> FontFamily.Monospace
-                            FontFamily.Cursive.name -> FontFamily.Cursive
-                            else -> FontFamily.Default
-                        },
-                        fontWeight = FontWeight(profileState.fontWeight),
-                        color = MaterialTheme.colors.secondary,
-                    )
-                }
-            }
+        )
+        Box(
+            modifier = Modifier.wrapContentWidth().height((profileState.fontSize + 16).dp)
+                .background(color = noteColor.header, shape = RoundedCornerShape(0.dp))
+                .clickable(onClick = { onConfirm(textFieldValue.value.text) })
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Text(
+                buttonText,
+                style = LocalTextStyle.current.copy(
+                    fontWeight = FontWeight(profileState.fontWeight),
+                    fontSize = profileState.fontSize.sp,
+                    lineHeight = (profileState.fontSize + 8).sp,
+                    fontFamily = when (profileState.fontFamily) {
+                        FontFamily.Serif.name -> FontFamily.Serif
+                        FontFamily.SansSerif.name -> FontFamily.SansSerif
+                        FontFamily.Monospace.name -> FontFamily.Monospace
+                        FontFamily.Cursive.name -> FontFamily.Cursive
+                        else -> FontFamily.Default
+                    },
+                    color = noteColor.icon,
+                )
+            )
         }
     }
 }

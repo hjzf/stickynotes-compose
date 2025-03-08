@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -15,10 +16,7 @@ import kotlinx.coroutines.launch
 import logic.DataStore
 import logic.ProfileState
 import logic.languages
-import ui.components.LabelAndDirectoryPicker
-import ui.components.LabelAndSelect
-import ui.components.LabelAndSlider
-import ui.components.LabelAndSwitch
+import ui.components.*
 import java.nio.file.Path
 
 @Composable
@@ -186,6 +184,6 @@ fun ProfilePage(
                 )
             }
         }
-        VerticalScrollbar(lazyListState)
+        CustomVerticalScrollbar(rememberScrollbarAdapter(lazyListState))
     }
 }

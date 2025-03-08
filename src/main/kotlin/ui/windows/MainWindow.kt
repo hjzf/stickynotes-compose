@@ -2,11 +2,16 @@ package ui.windows
 
 import LocalApplicationLocalization
 import LocalProfileState
+import androidx.compose.foundation.ContextMenuArea
+import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.window.WindowDraggableArea
-import androidx.compose.material.*
-import androidx.compose.runtime.*
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -32,6 +37,7 @@ private fun RowScope.NoteListPageTopBar(
     onIncreaseClick: () -> Unit,
     onProfileClick: () -> Unit,
     onCloseClick: () -> Unit,
+    exitApplication: () -> Unit,
 ) {
     val localProfileState = LocalProfileState.current
     val localApplicationLocalization = LocalApplicationLocalization.current
@@ -44,7 +50,24 @@ private fun RowScope.NoteListPageTopBar(
         showTooltip = localProfileState.tooltip,
         onClick = onIncreaseClick
     )
-    Spacer(modifier = Modifier.weight(1f))
+    Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+        ContextMenuArea(
+            items = {
+                listOf(
+                    ContextMenuItem(
+                        localApplicationLocalization.closeWindow,
+                        onCloseClick
+                    ),
+                    ContextMenuItem(
+                        localApplicationLocalization.exitApplication,
+                        exitApplication
+                    )
+                )
+            }
+        ) {
+            Box(modifier = Modifier.fillMaxSize())
+        }
+    }
     ButtonWithIcon(
         text = localApplicationLocalization.settings,
         iconSize = 20.dp,
@@ -115,6 +138,7 @@ fun MainWindow(
     visible: Boolean,
     alwaysOnTop: Boolean,
     onCloseButtonClick: () -> Unit,
+    exitApplication: () -> Unit,
     profileFilePath: Path,
     onProfileStateChange: (ProfileState) -> Unit,
 ) {
@@ -147,7 +171,8 @@ fun MainWindow(
                                 NoteListPageTopBar(
                                     onIncreaseClick = { coroutineScope.launch { DataStore.addNewNote() } },
                                     onProfileClick = { currentPage.value = Page.Profile },
-                                    onCloseClick = { onCloseButtonClick() }
+                                    onCloseClick = { onCloseButtonClick() },
+                                    exitApplication = { exitApplication() }
                                 )
                             }
 
