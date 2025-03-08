@@ -671,23 +671,9 @@ private fun TextBlock(
     val hovered = hoverInteractionSource.collectIsHoveredAsState()
     val confirmDialogVisible = remember { mutableStateOf(false) }
     val blockTypeInputVisible = remember { mutableStateOf(false) }
-    val blockTypeDescription = remember(block) { mutableStateOf(block.type.description) }
     val localApplicationLocalization = LocalApplicationLocalization.current
     val noteColor = remember(profileState.colorTheme, note.style) {
         getNoteColor(profileState.colorTheme, note.style)
-    }
-    LaunchedEffect(blockTypeDescription.value) {
-        val type = blockTypeDescription.value.trim().lowercase(Locale.getDefault())
-        val blockType = when (type) {
-            BlockType.TEXT.description -> BlockType.TEXT
-            BlockType.BOLD.description -> BlockType.BOLD
-            BlockType.ITALIC.description -> BlockType.ITALIC
-            BlockType.UNDERLINE.description -> BlockType.UNDERLINE
-            BlockType.LINE_THROUGH.description -> BlockType.LINE_THROUGH
-            else -> BlockType.TEXT
-        }
-        onBlockTypeChange(blockType)
-        blockTypeDescription.value = blockType.description
     }
     Card(
         modifier = modifier.hoverable(hoverInteractionSource, enabled = true),
@@ -698,10 +684,20 @@ private fun TextBlock(
         Column(modifier = Modifier.fillMaxSize()) {
             if (blockTypeInputVisible.value) {
                 BlockTypeInput(
-                    initValue = blockTypeDescription.value,
+                    initValue = block.type.description,
                     onConfirm = {
-                        blockTypeDescription.value = it
                         blockTypeInputVisible.value = false
+                        val newBlockType = when (it.trim().lowercase(Locale.getDefault())) {
+                            BlockType.TEXT.description -> BlockType.TEXT
+                            BlockType.BOLD.description -> BlockType.BOLD
+                            BlockType.ITALIC.description -> BlockType.ITALIC
+                            BlockType.UNDERLINE.description -> BlockType.UNDERLINE
+                            BlockType.LINE_THROUGH.description -> BlockType.LINE_THROUGH
+                            else -> BlockType.TEXT
+                        }
+                        if (newBlockType != block.type) {
+                            onBlockTypeChange(newBlockType)
+                        }
                     },
                     buttonText = localApplicationLocalization.ok,
                     profileState = profileState,
