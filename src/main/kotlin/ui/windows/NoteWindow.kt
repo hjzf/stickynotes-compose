@@ -48,6 +48,7 @@ private fun RowScope.TopBar(
     onCloseClick: () -> Unit,
     onDownClick: () -> Unit,
     onMinimizeClick: () -> Unit,
+    minimizeToTray: () -> Unit,
 ) {
     val localProfileState = LocalProfileState.current
     val localApplicationLocalization = LocalApplicationLocalization.current
@@ -91,6 +92,10 @@ private fun RowScope.TopBar(
                     ContextMenuItem(
                         localApplicationLocalization.minimize,
                         onMinimizeClick
+                    ),
+                    ContextMenuItem(
+                        localApplicationLocalization.minimizeToTray,
+                        minimizeToTray
                     ),
                     ContextMenuItem(
                         if (alwaysOnTop) {
@@ -180,6 +185,8 @@ private fun ButtonWithText(
 @Composable
 fun NoteWindow(
     note: Note,
+    visible: Boolean,
+    minimizeToTray: () -> Unit,
     openMainWindow: () -> Unit,
 ) {
     val windowState = rememberWindowState(
@@ -231,6 +238,7 @@ fun NoteWindow(
         undecorated = true,
         state = windowState,
         alwaysOnTop = alwaysOnTop.value,
+        visible = visible,
     ) {
         WindowDraggableArea(
             modifier = Modifier.fillMaxWidth().height((32.5).dp)
@@ -291,6 +299,9 @@ fun NoteWindow(
                                 if (!windowState.isMinimized) {
                                     windowState.isMinimized = true
                                 }
+                            },
+                            minimizeToTray = {
+                                minimizeToTray()
                             }
                         )
                     }

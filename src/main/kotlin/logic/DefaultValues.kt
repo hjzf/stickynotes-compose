@@ -118,6 +118,7 @@ val applicationLocalizationMap = mapOf(
         cancel = "取消",
         confirmDelete = "确认删除",
         confirmDeleteThisText = "确定要永久删除这段文本吗?",
+        minimizeToTray = "隐藏到托盘",
     ),
 )
 private val noteColorStyles = mapOf(

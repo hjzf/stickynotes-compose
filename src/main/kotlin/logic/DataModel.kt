@@ -94,6 +94,7 @@ data class ApplicationLocalization(
     val cancel: String = "Cancel",
     val confirmDelete: String = "Delete",
     val confirmDeleteThisText: String = "Are you sure you want to permanently delete this text?",
+    val minimizeToTray: String = "Minimize to tray",
 )
 
 data class Note(

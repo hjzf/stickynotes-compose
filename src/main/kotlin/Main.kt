@@ -1,7 +1,9 @@
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalLocalization
+import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.application
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -9,6 +11,8 @@ import kotlinx.coroutines.launch
 import logic.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import ui.SvgIcons
+import ui.icons.Watermelon
 import ui.windows.MainWindow
 import ui.windows.NoteWindow
 import java.util.*
@@ -70,8 +74,9 @@ fun main() {
             val themeShapes = remember { mutableStateOf(defaultThemeShapes) }
             val mainWindowVisible = remember { mutableStateOf(true) }
             val mainWindowAlwaysOnTop = remember { mutableStateOf(false) }
-            LaunchedEffect(mainWindowVisible.value, notes.value) {
-                if (!mainWindowVisible.value && notes.value.none { it.visible }) {
+            val trayVisible = remember { mutableStateOf(false) }
+            LaunchedEffect(mainWindowVisible.value, trayVisible.value, notes.value) {
+                if (!mainWindowVisible.value && !trayVisible.value && notes.value.none { it.visible }) {
                     exitApplication()
                 }
             }
@@ -81,8 +86,23 @@ fun main() {
                 LocalApplicationLocalization provides applicationLocalization.value,
             ) {
                 MaterialTheme(colors = themeColors.value, shapes = themeShapes.value) {
+                    if (trayVisible.value) {
+                        Tray(
+                            icon = rememberVectorPainter(SvgIcons.Watermelon),
+                            tooltip = applicationLocalization.value.stickynotes,
+                            onAction = {
+                                trayVisible.value = !trayVisible.value
+                            },
+                            menu = {
+                                Item("Show App", onClick = {
+                                    trayVisible.value = !trayVisible.value
+                                })
+                                Item("Exit", onClick = ::exitApplication)
+                            }
+                        )
+                    }
                     MainWindow(
-                        visible = mainWindowVisible.value,
+                        visible = mainWindowVisible.value && !trayVisible.value,
                         alwaysOnTop = mainWindowAlwaysOnTop.value,
                         onCloseButtonClick = {
                             mainWindowVisible.value = false
@@ -99,6 +119,10 @@ fun main() {
                             if (note.visible) {
                                 NoteWindow(
                                     note = note,
+                                    visible = !trayVisible.value,
+                                    minimizeToTray = {
+                                        trayVisible.value = true
+                                    },
                                     openMainWindow = {
                                         mainWindowVisible.value = true
                                         coroutineScope.launch {

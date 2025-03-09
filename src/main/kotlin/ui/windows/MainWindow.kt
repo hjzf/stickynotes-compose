@@ -150,7 +150,7 @@ fun MainWindow(
     val localApplicationLocalization = LocalApplicationLocalization.current
     Window(
         onCloseRequest = onCloseButtonClick,
-        title = localApplicationLocalization.stickynotes,
+        title = localApplicationLocalization.notesList,
         icon = rememberVectorPainter(SvgIcons.Watermelon),
         transparent = true,
         undecorated = true,
