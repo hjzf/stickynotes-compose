@@ -43,9 +43,16 @@ fun CustomTextField(
         @Composable { innerTextField -> innerTextField() },
     scrollState: TextFieldScrollState,
 ) {
+    val textFieldValue = remember { mutableStateOf(TextFieldValue(value)) }
     CustomTextField(
-        value = TextFieldValue(value),
-        onValueChange = { onValueChange(it.text) },
+        value = textFieldValue.value,
+        onValueChange = {
+            val string = textFieldValue.value.text
+            textFieldValue.value = it
+            if (it.text != string) {
+                onValueChange(it.text)
+            }
+        },
         emptyLineWidth = emptyLineWidth,
         modifier = modifier,
         enabled = enabled,
