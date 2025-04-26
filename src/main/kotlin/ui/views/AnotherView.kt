@@ -15,7 +15,8 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.rememberTextFieldHorizontalScrollState
+import androidx.compose.foundation.text.rememberTextFieldVerticalScrollState
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -61,6 +62,7 @@ import tool.currentTimeAsTimestamp
 import tool.isImageName
 import tool.unescapeHtml4
 import ui.SvgIcons
+import ui.components.CustomTextField
 import ui.components.CustomVerticalScrollbar
 import ui.icons.CopyImage
 import ui.icons.DeleteImage
@@ -154,7 +156,7 @@ fun AnotherView(
                 }
                 delay(600)
                 onClipboardSignalChange(false)
-            } catch (ignore: CancellationException) {
+            } catch (_: CancellationException) {
             } catch (e: Exception) {
                 log.error("Failed to get clipboard data", e)
             }
@@ -463,6 +465,7 @@ fun AnotherView(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun BoxScope.Input(
     localWindowInfo: WindowInfo,
@@ -481,11 +484,12 @@ private fun BoxScope.Input(
     val noteColor = remember(profileState.colorTheme, note.style) {
         getNoteColor(profileState.colorTheme, note.style)
     }
-    BasicTextField(
+    CustomTextField(
         value = textFieldState.value,
         onValueChange = {
             textFieldState.value = it.copy(text = it.text.replace("\t", " "))
         },
+        scrollState = rememberTextFieldVerticalScrollState(),
         modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp).fillMaxSize()
             .focusRequester(textFieldFocusRequester).onKeyEvent {
                 if (it.type == KeyEventType.KeyDown) {
@@ -652,6 +656,7 @@ private fun BoxScope.Input(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TextBlock(
     modifier: Modifier,
@@ -717,11 +722,12 @@ private fun TextBlock(
                 )
             ) {
                 if (editable) {
-                    BasicTextField(
+                    CustomTextField(
                         value = block.content,
                         onValueChange = {
                             onValueChange(it.replace("\t", " "))
                         },
+                        scrollState = rememberTextFieldVerticalScrollState(),
                         modifier = Modifier.padding(horizontal = 10.dp).fillMaxSize().onKeyEvent {
                             if (it.type == KeyEventType.KeyDown) {
                                 when (it.key) {
@@ -910,6 +916,7 @@ private fun TextBlock(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun BlockTypeInput(
     initValue: String,
@@ -930,11 +937,12 @@ private fun BlockTypeInput(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        BasicTextField(
+        CustomTextField(
             value = textFieldValue.value,
             onValueChange = {
                 textFieldValue.value = it
             },
+            scrollState = rememberTextFieldVerticalScrollState(),
             modifier = Modifier
                 .width(100.dp)
                 .height((profileState.fontSize + 16).dp)

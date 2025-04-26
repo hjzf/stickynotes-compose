@@ -10,7 +10,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.rememberTextFieldVerticalScrollState
 import androidx.compose.material.Divider
 import androidx.compose.material.LocalTextStyle
@@ -46,6 +45,7 @@ import tool.isImageName
 import tool.unescapeHtml4
 import ui.SvgIcons
 import ui.components.ButtonWithIcon
+import ui.components.CustomTextField
 import ui.components.CustomVerticalScrollbar
 import ui.icons.*
 
@@ -160,7 +160,7 @@ fun RawTextView(
     ) {
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             val textFieldVerticalScrollState = rememberTextFieldVerticalScrollState(0)
-            BasicTextField(
+            CustomTextField(
                 value = textFieldState.value,
                 onValueChange = {
                     val oldText = textFieldState.value.text

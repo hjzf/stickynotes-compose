@@ -39,7 +39,8 @@ compose.desktop {
         mainClass = "MainKt"
         buildTypes.release.proguard {
             isEnabled = false
-            // configurationFiles.from("proguard-rules.pro")
+            version = "7.6.1"
+            configurationFiles.from("proguard-rules.pro")
         }
         nativeDistributions {
             modules(
@@ -50,9 +51,10 @@ compose.desktop {
                 "java.prefs",
                 "java.xml",
                 "java.naming", // for logback
+                "jdk.incubator.vector", // for lucene
                 "jdk.crypto.ec"
             )
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            targetFormats(TargetFormat.AppImage, TargetFormat.Msi)
             packageName = "stickynotes"
             packageVersion = "1.0.12"
             description = "stickynotes"
@@ -66,6 +68,7 @@ compose.desktop {
                 dirChooser = true
                 shortcut = true
                 menuGroup = "stickynotes"
+                console = false
             }
             linux {
                 iconFile.set(project.file("icon.png"))

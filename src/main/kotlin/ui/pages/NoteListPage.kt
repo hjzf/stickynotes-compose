@@ -9,7 +9,7 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.rememberTextFieldHorizontalScrollState
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -37,6 +37,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import ui.SvgIcons
 import ui.components.ButtonWithIcon
+import ui.components.CustomTextField
 import ui.components.CustomVerticalScrollbar
 import ui.icons.winClose
 import ui.icons.winMore
@@ -53,7 +54,11 @@ private fun calculateAnnotationText(text: String, searchText: String): Annotated
             buildAnnotatedString {
                 append(text)
                 Regex(Pattern.quote(searchText), RegexOption.IGNORE_CASE).findAll(text).forEach {
-                    addStyle(SpanStyle(background = Color.Yellow, color = Color.Black), it.range.first, it.range.last + 1)
+                    addStyle(
+                        SpanStyle(background = Color.Yellow, color = Color.Black),
+                        it.range.first,
+                        it.range.last + 1
+                    )
                 }
             }
         }
@@ -176,6 +181,7 @@ fun NoteListPage(lazyListState: LazyListState = rememberLazyListState()) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RowScope.SearchInput(
     searchText: String,
@@ -184,12 +190,13 @@ private fun RowScope.SearchInput(
     val localProfileState = LocalProfileState.current
     val localApplicationLocalization = LocalApplicationLocalization.current
     val focusRequester = remember { FocusRequester() }
-    BasicTextField(
+    CustomTextField(
         value = searchText,
         onValueChange = { onSearchTextChange(it) },
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp).weight(1f).height(20.dp)
             .focusRequester(focusRequester),
         singleLine = true,
+        scrollState = rememberTextFieldHorizontalScrollState(),
         decorationBox = { innerTextField ->
             if (searchText.isEmpty()) {
                 Text(
@@ -254,7 +261,7 @@ private fun LazyItemScope.NoteCard(
                     }
                 }
             }
-        } catch (ignore: CancellationException) {
+        } catch (_: CancellationException) {
         } catch (e: Exception) {
             log.error("HoverInteraction error", e)
         }

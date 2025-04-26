@@ -4,13 +4,30 @@
 }
 -keep class org.apache.commons.lang3.**  { *; }
 -keep class org.apache.commons.text.**  { *; }
--keep class com.fasterxml.jackson.core.util.VersionUtil {
-    public VersionUtil();
-}
--keep class com.fasterxml.jackson.databind.jdk14.JDK14Util$RecordAccessor {
-    public ? getType();
-}
--dontwarn javax.annotation.Nullable
--dontwarn javax.annotation.Nonnull
--dontwarn javax.annotation.meta.TypeQualifierDefault
--dontwarn javax.annotation.concurrent.GuardedBy
+-keep class java.lang.invoke.** { *; }
+-dontwarn java.lang.invoke.**
+-keep class jakarta.servlet.** { *; }
+-dontwarn jakarta.servlet.**
+-keep class jakarta.mail.** { *; }
+-dontwarn jakarta.mail.**
+-keep class org.apache.lucene.** { *; }
+-dontwarn org.apache.lucene.**
+-keep class org.codehaus.janino.** { *; }
+-dontwarn org.codehaus.janino.**
+-keep class org.slf4j.** { *; }
+-dontwarn org.slf4j.**
+-keep class ch.qos.logback.** { *; }
+-dontwarn ch.qos.logback.**
+-keep class org.tartarus.snowball.SnowballProgram { *; }
+-dontwarn org.tartarus.snowball.SnowballProgram
+-keep class org.wltea.analyzer.query.IKQueryExpressionParser { *; }
+-dontwarn org.wltea.analyzer.query.IKQueryExpressionParser
+-keep class sun.font.CFont { *; }
+-dontwarn sun.font.CFont
+# https://github.com/JetBrains/compose-multiplatform/issues/4391
+-keep class androidx.compose.runtime.** { *; }
+-keep class kotlinx.coroutines.** { *; }
+-keep class androidx.compose.ui.text.platform.AwtFontUtils { *; }
+-dontwarn androidx.compose.ui.text.platform.AwtFontUtils
+-keep class androidx.lifecycle.viewmodel.internal.JvmViewModelProviders { *; }
+-dontwarn androidx.lifecycle.viewmodel.internal.JvmViewModelProviders
