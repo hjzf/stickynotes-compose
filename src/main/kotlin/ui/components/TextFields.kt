@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
@@ -130,12 +132,17 @@ fun CustomTextField(
         value = value,
         onValueChange = { onValueChange(it) },
         modifier = modifier.drawBehind {
+            val scrollOffset = scrollState.offset
             for (path in emptyLineSelectionPaths.value) {
-                drawPath(
-                    path = path,
-                    brush = SolidColor(textSelectionColors.backgroundColor),
-                    style = Fill
-                )
+                clipRect {
+                    translate(top = -scrollOffset) {
+                        drawPath(
+                            path = path,
+                            brush = SolidColor(textSelectionColors.backgroundColor),
+                            style = Fill
+                        )
+                    }
+                }
             }
         },
         enabled = enabled,
