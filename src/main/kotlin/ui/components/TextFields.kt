@@ -118,22 +118,34 @@ fun CustomTextField(
             emptyLineSelectionPaths.value = emptyList()
             return@LaunchedEffect
         }
+        val text = textLayout.layoutInput.text.text
         val list = ArrayList<Path>(lineCount)
         for (lineIndex in 0 until lineCount) {
+            val offset = textLayout.getLineStart(lineIndex)
+            if (offset < minIndex || offset > maxIndex) {
+                continue
+            }
             val x0 = textLayout.getLineLeft(lineIndex)
             val x1 = textLayout.getLineRight(lineIndex)
-            val offset = textLayout.getLineStart(lineIndex)
-            if (x0 == x1 && offset >= minIndex && offset <= maxIndex) {
-                val y0 = textLayout.getLineTop(lineIndex)
-                val y1 = textLayout.getLineBottom(lineIndex)
-                list.add(Path().apply {
-                    moveTo(x0, y0)
-                    lineTo(x0 + emptyLineWidth, y0)
-                    lineTo(x0 + emptyLineWidth, y1)
-                    lineTo(x0, y1)
-                    close()
-                })
+            if (x0 != x1) {
+                continue
             }
+            val lineEndOffset = textLayout.getLineEnd(lineIndex, false)
+            if (offset != lineEndOffset) {
+                val line = text.substring(offset, lineEndOffset)
+                if (line != "\n" && line != "\r" && line != "\r\n") {
+                    continue
+                }
+            }
+            val y0 = textLayout.getLineTop(lineIndex)
+            val y1 = textLayout.getLineBottom(lineIndex)
+            list.add(Path().apply {
+                moveTo(x0, y0)
+                lineTo(x0 + emptyLineWidth, y0)
+                lineTo(x0 + emptyLineWidth, y1)
+                lineTo(x0, y1)
+                close()
+            })
         }
         emptyLineSelectionPaths.value = list
     }
