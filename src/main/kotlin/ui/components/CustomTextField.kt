@@ -107,19 +107,14 @@ fun CustomTextField(
             if (textLayout == null) {
                 emptyList()
             } else {
-                val range = if (selection.start < selection.end) {
-                    selection.start until selection.end
-                } else {
-                    selection.end + 1 until selection.start + 1
-                }
-                (0 until textLayout.lineCount).filter { i ->
-                    val startOffset = textLayout.getLineStart(i)
-                    val endOffset = textLayout.getLineEnd(i, false)
-                    startOffset == endOffset && startOffset in range
-                }.map { i ->
-                    val x0 = textLayout.getLineLeft(i)
-                    val y0 = textLayout.getLineTop(i)
-                    val y1 = textLayout.getLineBottom(i)
+                (0 until textLayout.lineCount).filter { lineIndex ->
+                    val startOffset = textLayout.getLineStart(lineIndex)
+                    val endOffset = textLayout.getLineEnd(lineIndex, false)
+                    startOffset == endOffset && selection.contains(startOffset)
+                }.map { lineIndex ->
+                    val x0 = textLayout.getLineLeft(lineIndex)
+                    val y0 = textLayout.getLineTop(lineIndex)
+                    val y1 = textLayout.getLineBottom(lineIndex)
                     Path().apply {
                         moveTo(x0, y0)
                         lineTo(x0 + emptyLineWidth, y0)
