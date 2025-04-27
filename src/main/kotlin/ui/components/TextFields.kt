@@ -132,7 +132,11 @@ fun CustomTextField(
             }
             val lineEndOffset = textLayout.getLineEnd(lineIndex, false)
             if (offset != lineEndOffset) {
-                val line = text.substring(offset, lineEndOffset)
+                val line = if (offset < lineEndOffset) {
+                    text.substring(offset, lineEndOffset)
+                } else {
+                    text.substring(lineEndOffset, offset)
+                }
                 if (line != "\n" && line != "\r" && line != "\r\n") {
                     continue
                 }
