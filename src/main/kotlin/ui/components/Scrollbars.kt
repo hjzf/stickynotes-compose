@@ -40,7 +40,7 @@ fun BoxScope.CustomVerticalScrollbar(adapter: ScrollbarAdapter) {
                 delay(2000)
                 scrollbarVisible.value = false
             }
-        } catch (ignore: CancellationException) {
+        } catch (_: CancellationException) {
         } catch (e: Exception) {
             log.error("CustomVerticalScrollbar error", e)
         }

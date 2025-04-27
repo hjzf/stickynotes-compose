@@ -30,6 +30,7 @@ import logic.colorStyles
 import logic.getNoteColor
 import ui.SvgIcons
 import ui.components.ButtonWithIcon
+import ui.components.TransparentBox
 import ui.icons.*
 import ui.views.AnotherView
 import ui.views.RawTextView
@@ -240,140 +241,129 @@ fun NoteWindow(
         alwaysOnTop = alwaysOnTop.value,
         visible = visible,
     ) {
-        WindowDraggableArea(
-            modifier = Modifier.fillMaxWidth().height((32.5).dp)
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().height((0.5).dp)
-                        .background(noteColor.border)
-                ) {}
-                Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    Box(
-                        modifier = Modifier.width((0.5).dp).fillMaxHeight()
-                            .background(noteColor.border)
-                    ) {}
-                    Row(
-                        modifier = Modifier.weight(1f).fillMaxHeight()
-                            .background(
-                                noteColor.header
-                                    .copy(alpha = (localProfileState.backgroundAlpha.toFloat() / 255f))
+        WindowDraggableArea(modifier = Modifier.fillMaxWidth().height(32.dp)) {
+            TransparentBox(
+                modifier = Modifier.fillMaxSize(),
+                borderWidth = (0.5).dp,
+                borderColor = noteColor.border,
+                borderLeft = true,
+                borderRight = true,
+                borderTop = true,
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            noteColor.header.copy(
+                                alpha = (localProfileState.backgroundAlpha.toFloat() / 255f)
                             )
-                    ) {
-                        TopBar(
-                            noteColor.icon,
-                            rawTextMode = rawTextMode.value,
-                            onRawTextModeChange = {
-                                rawTextMode.value = it
-                                coroutineScope.launch {
-                                    DataStore.updateNoteMode(
-                                        note.id,
-                                        if (rawTextMode.value) 0 else 1
-                                    )
-                                }
-                            },
-                            alwaysOnTop = alwaysOnTop.value,
-                            tip = tip.value,
-                            onIncreaseClick = {
-                                coroutineScope.launch { DataStore.addNewNote() }
-                            },
-                            onMoreClick = { drawerVisible.value = true },
-                            onPinClick = {
-                                alwaysOnTop.value = !alwaysOnTop.value
-                                coroutineScope.launch {
-                                    DataStore.updateNoteAlwaysOnTop(
-                                        note.id,
-                                        alwaysOnTop.value
-                                    )
-                                }
-                            },
-                            onCloseClick = {
-                                coroutineScope.launch {
-                                    DataStore.updateNoteVisible(note.id, false)
-                                }
-                            },
-                            onDownClick = {
-                                coroutineScope.launch { clipboardSignal.value = true }
-                            },
-                            onMinimizeClick = {
-                                if (!windowState.isMinimized) {
-                                    windowState.isMinimized = true
-                                }
-                            },
-                            minimizeToTray = {
-                                minimizeToTray()
-                            }
                         )
-                    }
-                    Box(
-                        modifier = Modifier.width((0.5).dp).fillMaxHeight()
-                            .background(noteColor.border)
-                    ) {}
+                ) {
+                    TopBar(
+                        noteColor.icon,
+                        rawTextMode = rawTextMode.value,
+                        onRawTextModeChange = {
+                            rawTextMode.value = it
+                            coroutineScope.launch {
+                                DataStore.updateNoteMode(
+                                    note.id,
+                                    if (rawTextMode.value) 0 else 1
+                                )
+                            }
+                        },
+                        alwaysOnTop = alwaysOnTop.value,
+                        tip = tip.value,
+                        onIncreaseClick = {
+                            coroutineScope.launch { DataStore.addNewNote() }
+                        },
+                        onMoreClick = { drawerVisible.value = true },
+                        onPinClick = {
+                            alwaysOnTop.value = !alwaysOnTop.value
+                            coroutineScope.launch {
+                                DataStore.updateNoteAlwaysOnTop(
+                                    note.id,
+                                    alwaysOnTop.value
+                                )
+                            }
+                        },
+                        onCloseClick = {
+                            coroutineScope.launch {
+                                DataStore.updateNoteVisible(note.id, false)
+                            }
+                        },
+                        onDownClick = {
+                            coroutineScope.launch { clipboardSignal.value = true }
+                        },
+                        onMinimizeClick = {
+                            if (!windowState.isMinimized) {
+                                windowState.isMinimized = true
+                            }
+                        },
+                        minimizeToTray = {
+                            minimizeToTray()
+                        }
+                    )
                 }
             }
         }
-        Column(
-            modifier = Modifier.fillMaxWidth().height(windowState.size.height - (32.5).dp).offset(0.dp, (32.5).dp),
+        TransparentBox(
+            modifier = Modifier
+                .offset(0.dp, 32.dp)
+                .fillMaxWidth()
+                .height(windowState.size.height - 32.dp),
+            borderWidth = (0.5).dp,
+            borderColor = noteColor.border,
+            borderLeft = true,
+            borderRight = true,
+            borderBottom = true,
         ) {
-            Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                Box(
-                    modifier = Modifier.width((0.5).dp).fillMaxHeight()
-                        .background(noteColor.border)
-                ) {}
-                Row(
-                    modifier = Modifier.weight(1f).fillMaxHeight()
-                        .background(
-                            noteColor.content
-                                .copy(alpha = (localProfileState.backgroundAlpha.toFloat() / 255f))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        noteColor.content.copy(
+                            alpha = (localProfileState.backgroundAlpha.toFloat() / 255f)
                         )
-                ) {
-                    if (rawTextMode.value) {
-                        RawTextView(
-                            note = note,
-                            changeTip = { text: String, time: Long ->
-                                tip.value = text
-                                if (time > 0L) {
-                                    coroutineScope.launch {
-                                        delay(time)
-                                        tip.value = ""
-                                    }
+                    )
+            ) {
+                if (rawTextMode.value) {
+                    RawTextView(
+                        note = note,
+                        changeTip = { text: String, time: Long ->
+                            tip.value = text
+                            if (time > 0L) {
+                                coroutineScope.launch {
+                                    delay(time)
+                                    tip.value = ""
                                 }
-                            },
-                        )
-                    } else {
-                        AnotherView(
-                            note = note,
-                            changeTip = { text: String, time: Long ->
-                                tip.value = text
-                                if (time > 0L) {
-                                    coroutineScope.launch {
-                                        delay(time)
-                                        tip.value = ""
-                                    }
-                                }
-                            },
-                            clipboardSignal = clipboardSignal.value,
-                            onClipboardSignalChange = { clipboardSignal.value = it },
-                            position1 = position1.value,
-                            position2 = position2.value,
-                            position3 = position3.value,
-                            onPositionChange = { value1, value2, value3 ->
-                                position1.value = value1
-                                position2.value = value2
-                                position3.value = value3
                             }
-                        )
-                    }
+                        },
+                    )
+                } else {
+                    AnotherView(
+                        note = note,
+                        changeTip = { text: String, time: Long ->
+                            tip.value = text
+                            if (time > 0L) {
+                                coroutineScope.launch {
+                                    delay(time)
+                                    tip.value = ""
+                                }
+                            }
+                        },
+                        clipboardSignal = clipboardSignal.value,
+                        onClipboardSignalChange = { clipboardSignal.value = it },
+                        position1 = position1.value,
+                        position2 = position2.value,
+                        position3 = position3.value,
+                        onPositionChange = { value1, value2, value3 ->
+                            position1.value = value1
+                            position2.value = value2
+                            position3.value = value3
+                        }
+                    )
                 }
-                Box(
-                    modifier = Modifier.width((0.5).dp).fillMaxHeight()
-                        .background(noteColor.border)
-                ) {}
             }
-            Box(
-                modifier = Modifier.fillMaxWidth().height((0.5).dp)
-                    .background(noteColor.border)
-            ) {}
         }
         AnimatedVisibility(
             visible = drawerVisible.value,

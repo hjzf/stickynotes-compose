@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import logic.DataStore
 import logic.ProfileState
 import ui.SvgIcons
+import ui.components.TransparentBox
 import ui.components.ButtonWithIcon
 import ui.icons.*
 import ui.pages.NoteListPage
@@ -158,58 +159,61 @@ fun MainWindow(
         alwaysOnTop = alwaysOnTop,
         visible = visible,
     ) {
-        WindowDraggableArea(
-            modifier = Modifier.fillMaxWidth().height((40.5).dp)
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier.fillMaxWidth().height((0.5).dp).background(Color.LightGray)) {}
-                Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    Box(modifier = Modifier.width((0.5).dp).fillMaxHeight().background(Color.LightGray)) {}
-                    Row(modifier = Modifier.weight(1f).fillMaxHeight().background(Color.White)) {
-                        when (currentPage.value) {
-                            Page.NoteList -> {
-                                NoteListPageTopBar(
-                                    onIncreaseClick = { coroutineScope.launch { DataStore.addNewNote() } },
-                                    onProfileClick = { currentPage.value = Page.Profile },
-                                    onCloseClick = { onCloseButtonClick() },
-                                    exitApplication = { exitApplication() }
-                                )
-                            }
-
-                            Page.Profile -> {
-                                ProfilePageTopBar(
-                                    onBackClick = { currentPage.value = Page.NoteList },
-                                    onCloseClick = { onCloseButtonClick() }
-                                )
-                            }
-                        }
-                    }
-                    Box(modifier = Modifier.width((0.5).dp).fillMaxHeight().background(Color.LightGray)) {}
-                }
-            }
-        }
-        Column(
-            modifier = Modifier.fillMaxWidth().height((windowState.size.height - (40.5).dp)).offset(0.dp, (40.5).dp),
-        ) {
-            Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                Box(modifier = Modifier.width((0.5).dp).fillMaxHeight().background(Color.LightGray)) {}
-                Row(modifier = Modifier.weight(1f).fillMaxHeight().background(Color.White)) {
+        WindowDraggableArea(modifier = Modifier.fillMaxWidth().height(40.dp)) {
+            TransparentBox(
+                modifier = Modifier.fillMaxSize(),
+                borderWidth = (0.5).dp,
+                borderColor = Color.LightGray,
+                borderLeft = true,
+                borderRight = true,
+                borderTop = true,
+            ) {
+                Row(modifier = Modifier.fillMaxSize().background(Color.White)) {
                     when (currentPage.value) {
                         Page.NoteList -> {
-                            NoteListPage()
+                            NoteListPageTopBar(
+                                onIncreaseClick = { coroutineScope.launch { DataStore.addNewNote() } },
+                                onProfileClick = { currentPage.value = Page.Profile },
+                                onCloseClick = { onCloseButtonClick() },
+                                exitApplication = { exitApplication() }
+                            )
                         }
 
                         Page.Profile -> {
-                            ProfilePage(
-                                profileFilePath = profileFilePath,
-                                onProfileStateChange = onProfileStateChange,
+                            ProfilePageTopBar(
+                                onBackClick = { currentPage.value = Page.NoteList },
+                                onCloseClick = { onCloseButtonClick() }
                             )
                         }
                     }
                 }
-                Box(modifier = Modifier.width((0.5).dp).fillMaxHeight().background(Color.LightGray)) {}
             }
-            Box(modifier = Modifier.fillMaxWidth().height((0.5).dp).background(Color.LightGray)) {}
+        }
+        TransparentBox(
+            modifier = Modifier
+                .offset(0.dp, 40.dp)
+                .fillMaxWidth()
+                .height(windowState.size.height - 40.dp),
+            borderWidth = (0.5).dp,
+            borderColor = Color.LightGray,
+            borderLeft = true,
+            borderRight = true,
+            borderBottom = true,
+        ) {
+            Row(modifier = Modifier.fillMaxSize().background(Color.White)) {
+                when (currentPage.value) {
+                    Page.NoteList -> {
+                        NoteListPage()
+                    }
+
+                    Page.Profile -> {
+                        ProfilePage(
+                            profileFilePath = profileFilePath,
+                            onProfileStateChange = onProfileStateChange,
+                        )
+                    }
+                }
+            }
         }
     }
 }
