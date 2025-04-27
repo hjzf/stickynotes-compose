@@ -102,31 +102,40 @@ fun CustomTextField(
     val emptyLineSelectionPaths = remember { mutableStateOf(emptyList<Path>()) }
     LaunchedEffect(value.selection, textLayoutResult.value) {
         val selection = value.selection
-        emptyLineSelectionPaths.value = if (selection.length == 0) {
-            emptyList()
-        } else {
-            val textLayout = textLayoutResult.value
-            if (textLayout == null) {
-                emptyList()
-            } else {
-                (0 until textLayout.lineCount).filter { lineIndex ->
-                    val startOffset = textLayout.getLineStart(lineIndex)
-                    val endOffset = textLayout.getLineEnd(lineIndex, false)
-                    startOffset == endOffset && selection.contains(startOffset)
-                }.map { lineIndex ->
-                    val x0 = textLayout.getLineLeft(lineIndex)
-                    val y0 = textLayout.getLineTop(lineIndex)
-                    val y1 = textLayout.getLineBottom(lineIndex)
-                    Path().apply {
-                        moveTo(x0, y0)
-                        lineTo(x0 + emptyLineWidth, y0)
-                        lineTo(x0 + emptyLineWidth, y1)
-                        lineTo(x0, y1)
-                        close()
-                    }
-                }
+        val minIndex = selection.min
+        val maxIndex = selection.max
+        if (minIndex == maxIndex) {
+            emptyLineSelectionPaths.value = emptyList()
+            return@LaunchedEffect
+        }
+        val textLayout = textLayoutResult.value
+        if (textLayout == null) {
+            emptyLineSelectionPaths.value = emptyList()
+            return@LaunchedEffect
+        }
+        val lineCount = textLayout.lineCount
+        if (lineCount == 0) {
+            emptyLineSelectionPaths.value = emptyList()
+            return@LaunchedEffect
+        }
+        val list = ArrayList<Path>(lineCount)
+        for (lineIndex in 0 until lineCount) {
+            val x0 = textLayout.getLineLeft(lineIndex)
+            val x1 = textLayout.getLineRight(lineIndex)
+            val offset = textLayout.getLineStart(lineIndex)
+            if (x0 == x1 && offset >= minIndex && offset <= maxIndex) {
+                val y0 = textLayout.getLineTop(lineIndex)
+                val y1 = textLayout.getLineBottom(lineIndex)
+                list.add(Path().apply {
+                    moveTo(x0, y0)
+                    lineTo(x0 + emptyLineWidth, y0)
+                    lineTo(x0 + emptyLineWidth, y1)
+                    lineTo(x0, y1)
+                    close()
+                })
             }
         }
+        emptyLineSelectionPaths.value = list
     }
     BasicTextField(
         value = value,
