@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.rememberTextFieldHorizontalScrollState
 import androidx.compose.foundation.text.rememberTextFieldVerticalScrollState
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -446,13 +445,10 @@ fun AnotherView(
             }
         }
         Divider(
+            color = noteColor.border.copy(alpha = (localProfileState.backgroundAlpha.toFloat() / 255f)),
             modifier = Modifier
                 .height(1.dp)
-                .draggable(
-                    state = draggableState,
-                    orientation = Orientation.Vertical
-                )
-                .background(color = noteColor.border)
+                .draggable(state = draggableState, orientation = Orientation.Vertical)
                 .pointerHoverIcon(icon = PointerIcon(Cursor(Cursor.N_RESIZE_CURSOR)))
         )
         Box(

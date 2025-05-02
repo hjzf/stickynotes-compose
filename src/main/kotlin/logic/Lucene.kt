@@ -80,7 +80,7 @@ object Lucene {
                     }
                 }
             }
-        } catch (e: IndexNotFoundException) {
+        } catch (_: IndexNotFoundException) {
             MMapDirectory.open(indexPath).use { directory ->
                 IKAnalyzer().use { analyzer ->
                     val indexWriterConfig = IndexWriterConfig(analyzer)

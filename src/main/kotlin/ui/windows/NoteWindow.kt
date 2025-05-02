@@ -245,7 +245,7 @@ fun NoteWindow(
             TransparentBox(
                 modifier = Modifier.fillMaxSize(),
                 borderWidth = (0.5).dp,
-                borderColor = noteColor.border,
+                borderColor = noteColor.border.copy(alpha = (localProfileState.backgroundAlpha.toFloat() / 255f)),
                 borderLeft = true,
                 borderRight = true,
                 borderTop = true,
@@ -312,7 +312,7 @@ fun NoteWindow(
                 .fillMaxWidth()
                 .height(windowState.size.height - 32.dp),
             borderWidth = (0.5).dp,
-            borderColor = noteColor.border,
+            borderColor = noteColor.border.copy(alpha = (localProfileState.backgroundAlpha.toFloat() / 255f)),
             borderLeft = true,
             borderRight = true,
             borderBottom = true,
