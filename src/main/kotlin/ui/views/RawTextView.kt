@@ -132,7 +132,7 @@ fun RawTextView(
                                     filePath
                                 }
                                 if (rawFilePath.isImageName()) {
-                                    "-- image\n${rawFilePath}"
+                                    "${DataStore.SEPARATOR_PREFIX} image\n${rawFilePath}"
                                 } else {
                                     rawFilePath
                                 }
