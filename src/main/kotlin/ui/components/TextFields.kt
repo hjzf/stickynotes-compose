@@ -2,12 +2,12 @@ package ui.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.text.*
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextFieldScrollState
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
@@ -45,14 +45,29 @@ fun CustomTextField(
         @Composable { innerTextField -> innerTextField() },
     scrollState: TextFieldScrollState,
 ) {
-    val textFieldValue = remember { mutableStateOf(TextFieldValue(value)) }
+    val lastText = remember(value) { mutableStateOf(value) }
+    val selectionAndComposition = remember { mutableStateOf(TextFieldValue(text = value)) }
+    val state = selectionAndComposition.value.copy(text = value)
+    // state = f(value, selectionAndComposition)
+    // note: state.selection and selectionAndComposition.selection may or may not be equal
+    // because state.selection also depends on the length of value
+    SideEffect {
+        if (
+            selectionAndComposition.value.selection != state.selection ||
+            selectionAndComposition.value.composition != state.composition
+        ) {
+            selectionAndComposition.value = state
+        }
+    }
     CustomTextField(
-        value = textFieldValue.value,
+        value = state,
         onValueChange = {
-            val string = textFieldValue.value.text
-            textFieldValue.value = it
-            if (it.text != string) {
-                onValueChange(it.text)
+            selectionAndComposition.value = it
+            val text = it.text
+            val textChanged = lastText.value != text
+            lastText.value = text
+            if (textChanged) {
+                onValueChange(text)
             }
         },
         emptyLineWidth = emptyLineWidth,
