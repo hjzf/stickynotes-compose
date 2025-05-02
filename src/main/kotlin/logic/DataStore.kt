@@ -492,9 +492,10 @@ object DataStore {
 
     private fun String.escape(): String {
         return this.lineSequence().joinToString("\n") { line ->
-            when (line.firstOrNull()) {
-                '#', '\\' -> "\\$line"
-                else -> line
+            if (line.startsWith("--") || line.startsWith("\\")) {
+                "\\$line"
+            } else {
+                line
             }
         }
     }
@@ -510,7 +511,7 @@ object DataStore {
                 return if (singleBlock.type == BlockType.TEXT) {
                     singleBlock.content.escape()
                 } else {
-                    "# ${singleBlock.type.description}\n${singleBlock.content.escape()}"
+                    "-- ${singleBlock.type.description}\n${singleBlock.content.escape()}"
                 }
             }
             val builder = StringBuilder()
@@ -518,14 +519,16 @@ object DataStore {
             if (firstBlock.type == BlockType.TEXT) {
                 builder.append(firstBlock.content.escape()).append('\n')
             } else {
-                builder.append("# ").append(firstBlock.type.description).append('\n').append(firstBlock.content.escape()).append('\n')
+                builder.append("-- ").append(firstBlock.type.description).append('\n')
+                    .append(firstBlock.content.escape()).append('\n')
             }
             for (i in 1..(blocks.size - 2)) {
                 val block = blocks[i]
-                builder.append("# ").append(block.type.description).append('\n').append(block.content.escape()).append('\n')
+                builder.append("-- ").append(block.type.description).append('\n').append(block.content.escape())
+                    .append('\n')
             }
             val lastBlock = blocks[blocks.size - 1]
-            builder.append("# ").append(lastBlock.type.description).append('\n').append(lastBlock.content.escape())
+            builder.append("-- ").append(lastBlock.type.description).append('\n').append(lastBlock.content.escape())
             return builder.toString()
         } catch (e: Exception) {
             log.error("Failed to load blocks as raw text", e)
@@ -547,14 +550,14 @@ object DataStore {
             var blockType: BlockType? = null
             var contentLines: ArrayList<String>? = null
             val firstLine = lines[0]
-            if (!firstLine.startsWith("#")) {
+            if (!firstLine.startsWith("--")) {
                 blockType = BlockType.TEXT
                 contentLines = ArrayList()
             }
             val blocks = ArrayList<Block>(lines.size)
             var index = 0
             for (line in lines) {
-                if (line.startsWith("#")) {
+                if (line.startsWith("--")) {
                     if (blockType != null && contentLines != null) {
                         blocks.add(Block(blockType, contentLines.joinToString("\n"), index))
                         index++
@@ -570,7 +573,7 @@ object DataStore {
                         else -> BlockType.TEXT
                     }
                     contentLines = ArrayList()
-                } else if (line.startsWith("\\#") || line.startsWith("\\\\")) {
+                } else if (line.startsWith("\\--") || line.startsWith("\\\\")) {
                     contentLines?.add(line.substring(1))
                 } else {
                     contentLines?.add(line)
