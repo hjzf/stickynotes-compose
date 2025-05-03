@@ -2,10 +2,10 @@ package logic
 
 import org.apache.lucene.document.*
 import org.apache.lucene.index.*
-import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.Sort
 import org.apache.lucene.search.SortField
+import org.apache.lucene.search.TermQuery
 import org.apache.lucene.store.MMapDirectory
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -38,9 +38,11 @@ object Lucene {
                 IKAnalyzer().use { analyzer ->
                     DirectoryReader.open(directory).use { directoryReader ->
                         val indexSearcher = IndexSearcher(directoryReader)
-                        val queryParser = QueryParser(INDEX_FIELD_NAME, analyzer)
-                        val lowercaseQueryString = q.lowercase(Locale.getDefault())
-                        val query = queryParser.parse("\"${QueryParser.escape(lowercaseQueryString)}\"")
+                        // val lowercaseQueryString = q.lowercase(Locale.getDefault())
+                        // val queryParser = QueryParser(INDEX_FIELD_NAME, analyzer)
+                        // val query = queryParser.parse("\"${QueryParser.escape(lowercaseQueryString)}\"")
+                        val queryText = q.trim().lowercase(Locale.getDefault())
+                        val query = TermQuery(Term(INDEX_FIELD_NAME, queryText))
                         val sort = Sort(SortField(UPDATE_TIME, SortField.Type.LONG, true))
                         val topDocs = indexSearcher.search(query, 1024, sort)
                         val scoreDocs = topDocs.scoreDocs
@@ -165,9 +167,10 @@ object Lucene {
         try {
             val indexFieldValue = StringBuilder(block.content.lowercase(Locale.getDefault())).append(' ')
                 .append(formatTimestamp(updateTime, "yyyyMMdd")).append(' ')
-                .append(formatTimestamp(updateTime, "yyyy/MM/dd")).append(' ')
                 .append(formatTimestamp(updateTime, "yyyy-MM-dd")).append(' ')
                 .append(formatTimestamp(updateTime, "yyyy_MM_dd")).toString()
+            // TODO yyyy/MM/dd
+            // '/' will be ignored by IKAnalyzer
             val document = Document()
             document.add(TextField(INDEX_FIELD_NAME, indexFieldValue, Field.Store.NO))
             document.add(StringField(NOTE_ID, noteId, Field.Store.YES))
