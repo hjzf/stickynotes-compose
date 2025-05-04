@@ -25,7 +25,6 @@ dependencies {
     // (in a separate module for demo project and in testMain).
     // With compose.desktop.common you will also lose @Preview functionality
     implementation(compose.desktop.currentOs)
-    implementation("org.jetbrains.compose.material:material-icons-core:1.7.3")
     implementation("org.apache.commons:commons-text:1.12.0")
     implementation("org.apache.lucene:lucene-core:10.1.0")
     implementation("org.apache.lucene:lucene-analysis-common:10.1.0")
@@ -40,7 +39,7 @@ compose.desktop {
     application {
         mainClass = "MainKt"
         buildTypes.release.proguard {
-            isEnabled = true
+            isEnabled = false
             version = "7.7.0"
             configurationFiles.from("proguard-rules.pro")
         }

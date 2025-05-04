@@ -17,9 +17,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.rememberTextFieldVerticalScrollState
 import androidx.compose.material.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Done
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -67,6 +64,8 @@ import ui.icons.CopyImage
 import ui.icons.DeleteImage
 import ui.icons.OpenImage
 import ui.icons.noImage
+import ui.icons.winCheck
+import ui.icons.winClose
 import java.awt.Cursor
 import java.awt.Desktop
 import java.awt.Image
@@ -647,7 +646,11 @@ private fun BoxScope.Input(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Done, "done", tint = MaterialTheme.colors.primary)
+            Image(
+                modifier = Modifier.size(32.dp),
+                painter = rememberVectorPainter(SvgIcons.winCheck(MaterialTheme.colors.primary)),
+                contentDescription = "done"
+            )
         }
     }
 }
@@ -846,11 +849,15 @@ private fun TextBlock(
                 }
                 if (hovered.value && block.content.isEmpty()) {
                     Box(
-                        modifier = Modifier.wrapContentWidth().height((profileState.fontSize + 8).dp)
+                        modifier = Modifier.size((profileState.fontSize + 8).dp)
                             .align(Alignment.CenterEnd).clickable { deleteText() },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Filled.Close, "delete", tint = MaterialTheme.colors.error)
+                        Image(
+                            modifier = Modifier.size(profileState.fontSize.coerceAtLeast(20).dp),
+                            painter = rememberVectorPainter(SvgIcons.winClose(MaterialTheme.colors.error)),
+                            contentDescription = "delete"
+                        )
                     }
                 }
                 if (copied) {
