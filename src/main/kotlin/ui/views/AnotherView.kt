@@ -234,8 +234,13 @@ fun AnotherView(
                                     filePath
                                 }
                                 if (rawFilePath.isImageName()) {
-                                    val name = rawFilePath.substringAfterLast("/")
-                                    val absoluteFile = File(localProfileState.dataPath, name)
+                                    val imageType = rawFilePath.substringAfterLast(".", "")
+                                    val name = if (imageType.isEmpty()) {
+                                        "image-${currentTimeAsTimestamp()}"
+                                    } else {
+                                        "image-${currentTimeAsTimestamp()}.${imageType}"
+                                    }
+                                    val absoluteFile = File(localProfileState.dataPath, "./${name}")
                                     File(rawFilePath).copyTo(absoluteFile, overwrite = true)
                                     blocks.add(Block(BlockType.IMAGE, "./${name}", ++maxBlockId.value))
                                 } else {
