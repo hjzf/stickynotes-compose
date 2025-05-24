@@ -245,7 +245,7 @@ object DataStore {
     suspend fun addNewNote(): Note {
         try {
             val notes = loadNotes().toMutableList()
-            val timestamp = currentTimeAsTimestamp()
+            val timestamp = currentTimestamp()
             val newNote = Note(
                 id = UUID.randomUUID().toString().replace("-", ""),
                 visible = true,
@@ -430,7 +430,7 @@ object DataStore {
                 if (index >= 0) {
                     val note = notes[index]
                     if (!equals(blocks, loadBlocks(note.id))) {
-                        val timestamp = currentTimeAsTimestamp()
+                        val timestamp = currentTimestamp()
                         notes[index] = note.copy(
                             description = calculateDescription(blocks), updateTime = timestamp
                         )

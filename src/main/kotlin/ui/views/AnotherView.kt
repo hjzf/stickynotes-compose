@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import tool.clearAllHtmlTags
-import tool.currentTimeAsTimestamp
+import tool.currentTimestamp
 import tool.isImageName
 import tool.unescapeHtml4
 import ui.SvgIcons
@@ -135,7 +135,7 @@ fun AnotherView(
                     val bGr = bufferedImage.createGraphics()
                     bGr.drawImage(image, 0, 0, null)
                     bGr.dispose()
-                    val name = "image-${currentTimeAsTimestamp()}.png"
+                    val name = "image-${currentTimestamp()}.png"
                     val absoluteFile = File(localProfileState.dataPath, "./${name}")
                     ImageIO.write(bufferedImage, "png", absoluteFile)
                     blocks.add(Block(BlockType.IMAGE, "./${name}", ++maxBlockId.value))
@@ -236,9 +236,9 @@ fun AnotherView(
                                 if (rawFilePath.isImageName()) {
                                     val imageType = rawFilePath.substringAfterLast(".", "")
                                     val name = if (imageType.isEmpty()) {
-                                        "image-${currentTimeAsTimestamp()}"
+                                        "image-${currentTimestamp()}"
                                     } else {
-                                        "image-${currentTimeAsTimestamp()}.${imageType}"
+                                        "image-${currentTimestamp()}.${imageType}"
                                     }
                                     val absoluteFile = File(localProfileState.dataPath, "./${name}")
                                     File(rawFilePath).copyTo(absoluteFile, overwrite = true)
