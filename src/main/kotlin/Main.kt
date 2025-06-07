@@ -18,6 +18,8 @@ import ui.windows.NoteWindow
 import java.util.*
 import javax.swing.UIManager
 import kotlin.io.path.Path
+import kotlin.io.path.createDirectories
+import kotlin.io.path.createParentDirectories
 import kotlin.io.path.div
 
 private val log: Logger = LoggerFactory.getLogger("Main")
@@ -45,6 +47,8 @@ fun main() {
                 defaultDataPath = appDataPath / APP_NAME / "data"
             }
         }
+        profileFilePath.createParentDirectories()
+        defaultDataPath.createDirectories()
         application {
             val profileState = remember { mutableStateOf(DataStore.loadProfileState(profileFilePath, defaultDataPath)) }
             val textFieldLocalization = remember(profileState.value.language) {
